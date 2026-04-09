@@ -178,7 +178,6 @@ FoodOrderSystem/
   setup.sh                    # One-click setup script
   config.example              # Example config file
   README.md                   # This file
-  CLAUDE.md                   # Development conventions
   src/
     main.cpp                  # Entry point (Config + Logger init)
     ui/
