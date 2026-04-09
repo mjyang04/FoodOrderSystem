@@ -83,6 +83,7 @@ private:
     bool executeQuery(const std::string& query);
     MYSQL_RES* executeSelect(const std::string& query);
     std::string escape(const std::string& input);
+    MYSQL_STMT* prepareStatement(const std::string& query);
 };
 
 #endif // DATABASE_H

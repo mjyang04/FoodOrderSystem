@@ -1,19 +1,35 @@
 #include <iostream>
 #include <string>
-#include <cstdlib>
 #include "db/Database.h"
 #include "auth/LoginSystem.h"
 #include "core/FoodOrderSystem.h"
 #include "ui/Color.h"
+#include "util/Config.h"
+#include "util/Logger.h"
 
 int main()
 {
-    // Read database config from environment variables (with defaults)
-    std::string dbHost = std::getenv("DB_HOST") ? std::getenv("DB_HOST") : "127.0.0.1";
-    std::string dbUser = std::getenv("DB_USER") ? std::getenv("DB_USER") : "root";
-    std::string dbPass = std::getenv("DB_PASS") ? std::getenv("DB_PASS") : "";
-    std::string dbName = std::getenv("DB_NAME") ? std::getenv("DB_NAME") : "food_order_system";
-    unsigned int dbPort = std::getenv("DB_PORT") ? std::stoi(std::getenv("DB_PORT")) : 3306;
+    // Load config (file -> env var -> defaults)
+    auto& config = Config::instance();
+    config.loadFromFile("config");  // Optional: load from config file
+
+    // Setup logger
+    auto& logger = Logger::instance();
+    std::string logLevel = config.getString("LOG_LEVEL", "INFO");
+    if (logLevel == "DEBUG") logger.setLevel(LogLevel::DEBUG);
+    else if (logLevel == "WARNING") logger.setLevel(LogLevel::WARNING);
+    else if (logLevel == "ERROR") logger.setLevel(LogLevel::ERROR);
+    else logger.setLevel(LogLevel::INFO);
+
+    std::string logFile = config.getString("LOG_FILE", "");
+    if (!logFile.empty()) logger.setLogFile(logFile);
+
+    // Read database config
+    std::string dbHost = config.getString("DB_HOST", "127.0.0.1");
+    std::string dbUser = config.getString("DB_USER", "root");
+    std::string dbPass = config.getString("DB_PASS", "");
+    std::string dbName = config.getString("DB_NAME", "food_order_system");
+    unsigned int dbPort = static_cast<unsigned int>(config.getInt("DB_PORT", 3306));
 
     // Connect to MySQL
     auto& db = Database::instance();

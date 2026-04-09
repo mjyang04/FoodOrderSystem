@@ -28,50 +28,13 @@ Upgrade the C++ course project from CSV-based console app to a MySQL-backed, mod
   - [x] 4.4 Search & filter (by keyword, price range)
   - [x] 4.5 Order history analytics (total spent, favorite restaurant, order count)
 - [x] Phase 5: Build & Verify - Clean build, 0 warnings
-
-## Architecture (Final)
-```
-src/
-  main.cpp                    # Entry point, DB connection
-  ui/
-    Color.h                   # ANSI color constants (namespace)
-  core/
-    FoodOrderSystem.h/cpp     # Business logic + menus
-    Order.h/cpp               # Order with status tracking
-    Restaurant.h/cpp          # Restaurant with shared_ptr menu
-  model/
-    Food.h/cpp                # Food hierarchy with clone()
-    FoodFactory.h/cpp         # Factory + Registry pattern
-    Delivery.h/cpp            # Delivery with factory function
-  auth/
-    User.h/cpp                # User with role & password verify
-    LoginSystem.h/cpp         # Login + Registration
-    HashUtil.h/cpp            # SHA-256 + salt
-  db/
-    Database.h/cpp            # MySQL singleton
-    schema.sql                # DDL + seed data
-  util/
-    InputHelper.h/cpp         # Safe input + cross-platform clear
-CMakeLists.txt
-setup.sh
-```
-
-## Key Improvements Over Original
-1. **MySQL database** instead of CSV files
-2. **Factory + Registry pattern** eliminates 10-way if-else chain
-3. **Smart pointers** (unique_ptr/shared_ptr) - zero memory leaks
-4. **Password hashing** (SHA-256 with random salt)
-5. **User registration** (not hardcoded)
-6. **Order status tracking** (6 states)
-7. **Admin panel** (full CRUD for restaurants, menu, riders, users)
-8. **Rating system** for orders
-9. **Search & filter** (keyword, price range)
-10. **Analytics** (total spent, favorite restaurant)
-11. **Input validation** (no crashes on bad input)
-12. **Cross-platform** (clear screen, CMake build)
-13. **Proper project structure** (src/ with subdirectories)
-14. **No `using namespace std` in headers**
-15. **Modern C++17** (structured bindings, constexpr, auto)
+- [x] Phase 6: Engineering Improvements
+  - [x] 6.1 Unit tests (GoogleTest) - 55 tests across 5 files
+  - [x] 6.2 Prepared statements (mysql_stmt_*) for createUser, createOrder, findUser
+  - [x] 6.3 Custom exception hierarchy (Exceptions.h)
+  - [x] 6.4 Logging system (Logger.h) - 4 levels, file output
+  - [x] 6.5 Config system (Config.h) - file + env var reader
+  - [x] 6.6 Updated CLAUDE.md, README.md
 
 ## Status
-**COMPLETE** - All phases implemented. Build clean with 0 warnings.
+**COMPLETE** - All phases implemented. 55/55 tests passing.

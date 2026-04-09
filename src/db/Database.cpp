@@ -1,6 +1,8 @@
 #include "Database.h"
 #include "../auth/HashUtil.h"
 #include "../model/FoodFactory.h"
+#include "../util/Logger.h"
+#include "../util/Exceptions.h"
 #include <iostream>
 #include <sstream>
 #include <random>
@@ -25,18 +27,19 @@ bool Database::connect(const std::string& host, const std::string& user,
     conn_ = mysql_init(nullptr);
     if (!conn_)
     {
-        std::cerr << "mysql_init() failed\n";
+        LOG_ERROR("mysql_init() failed");
         return false;
     }
     if (!mysql_real_connect(conn_, host.c_str(), user.c_str(), password.c_str(),
                             dbName.c_str(), port, nullptr, 0))
     {
-        std::cerr << "MySQL connection error: " << mysql_error(conn_) << std::endl;
+        LOG_ERROR(std::string("MySQL connection error: ") + mysql_error(conn_));
         mysql_close(conn_);
         conn_ = nullptr;
         return false;
     }
     mysql_set_character_set(conn_, "utf8mb4");
+    LOG_INFO("Connected to MySQL: " + dbName + "@" + host + ":" + std::to_string(port));
     return true;
 }
 
@@ -46,6 +49,7 @@ void Database::disconnect()
     {
         mysql_close(conn_);
         conn_ = nullptr;
+        LOG_INFO("MySQL connection closed");
     }
 }
 
@@ -58,7 +62,7 @@ bool Database::executeQuery(const std::string& query)
 {
     if (mysql_query(conn_, query.c_str()))
     {
-        std::cerr << "SQL Error: " << mysql_error(conn_) << "\nQuery: " << query << std::endl;
+        LOG_ERROR(std::string("SQL Error: ") + mysql_error(conn_) + " | Query: " + query);
         return false;
     }
     return true;
@@ -68,7 +72,7 @@ MYSQL_RES* Database::executeSelect(const std::string& query)
 {
     if (mysql_query(conn_, query.c_str()))
     {
-        std::cerr << "SQL Error: " << mysql_error(conn_) << "\nQuery: " << query << std::endl;
+        LOG_ERROR(std::string("SQL Error: ") + mysql_error(conn_) + " | Query: " + query);
         return nullptr;
     }
     return mysql_store_result(conn_);
@@ -80,6 +84,24 @@ std::string Database::escape(const std::string& input)
     auto len = mysql_real_escape_string(conn_, &output[0], input.c_str(), input.size());
     output.resize(len);
     return output;
+}
+
+// ---- Prepared Statement Helpers ----
+MYSQL_STMT* Database::prepareStatement(const std::string& query)
+{
+    MYSQL_STMT* stmt = mysql_stmt_init(conn_);
+    if (!stmt)
+    {
+        LOG_ERROR("mysql_stmt_init() failed");
+        return nullptr;
+    }
+    if (mysql_stmt_prepare(stmt, query.c_str(), query.size()))
+    {
+        LOG_ERROR(std::string("Prepare failed: ") + mysql_stmt_error(stmt) + " | Query: " + query);
+        mysql_stmt_close(stmt);
+        return nullptr;
+    }
+    return stmt;
 }
 
 // ---- Schema Initialization ----
@@ -137,7 +159,7 @@ void Database::initializeSchema()
             food_description TEXT,
             quantity INT NOT NULL,
             preference VARCHAR(100) DEFAULT '',
-            special_instruction TEXT DEFAULT '',
+            special_instruction TEXT,
             FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
         ))"
     };
@@ -146,39 +168,133 @@ void Database::initializeSchema()
     {
         executeQuery(sql);
     }
+    LOG_DEBUG("Schema initialized");
 }
 
-// ---- User operations ----
+// ---- User operations (Prepared Statements) ----
 bool Database::createUser(const std::string& username, const std::string& password, UserRole role)
 {
-    if (userExists(username)) return false;
+    if (userExists(username))
+    {
+        throw UserExistsException(username);
+    }
 
     std::string salt = HashUtil::generateSalt();
     std::string hash = HashUtil::hashPassword(password, salt);
     std::string roleStr = (role == UserRole::ADMIN) ? "admin" : "customer";
 
-    std::string sql = "INSERT INTO users (username, password_hash, salt, role) VALUES ('"
-        + escape(username) + "','" + escape(hash) + "','" + escape(salt) + "','" + roleStr + "')";
-    return executeQuery(sql);
+    const std::string sql = "INSERT INTO users (username, password_hash, salt, role) VALUES (?, ?, ?, ?)";
+    MYSQL_STMT* stmt = prepareStatement(sql);
+    if (!stmt) return false;
+
+    MYSQL_BIND bind[4];
+    std::memset(bind, 0, sizeof(bind));
+    unsigned long usernameLen = username.size();
+    unsigned long hashLen = hash.size();
+    unsigned long saltLen = salt.size();
+    unsigned long roleLen = roleStr.size();
+
+    bind[0].buffer_type = MYSQL_TYPE_STRING;
+    bind[0].buffer = const_cast<char*>(username.c_str());
+    bind[0].buffer_length = usernameLen;
+    bind[0].length = &usernameLen;
+
+    bind[1].buffer_type = MYSQL_TYPE_STRING;
+    bind[1].buffer = const_cast<char*>(hash.c_str());
+    bind[1].buffer_length = hashLen;
+    bind[1].length = &hashLen;
+
+    bind[2].buffer_type = MYSQL_TYPE_STRING;
+    bind[2].buffer = const_cast<char*>(salt.c_str());
+    bind[2].buffer_length = saltLen;
+    bind[2].length = &saltLen;
+
+    bind[3].buffer_type = MYSQL_TYPE_STRING;
+    bind[3].buffer = const_cast<char*>(roleStr.c_str());
+    bind[3].buffer_length = roleLen;
+    bind[3].length = &roleLen;
+
+    mysql_stmt_bind_param(stmt, bind);
+    bool success = (mysql_stmt_execute(stmt) == 0);
+    if (!success)
+    {
+        LOG_ERROR(std::string("createUser failed: ") + mysql_stmt_error(stmt));
+    }
+    else
+    {
+        LOG_INFO("User created: " + username + " (role: " + roleStr + ")");
+    }
+    mysql_stmt_close(stmt);
+    return success;
 }
 
 User Database::findUserByUsername(const std::string& username)
 {
-    std::string sql = "SELECT id, username, password_hash, salt, role FROM users WHERE username='"
-        + escape(username) + "'";
-    MYSQL_RES* res = executeSelect(sql);
-    if (!res) return {};
+    const std::string sql = "SELECT id, username, password_hash, salt, role FROM users WHERE username=?";
+    MYSQL_STMT* stmt = prepareStatement(sql);
+    if (!stmt) return {};
 
-    MYSQL_ROW row = mysql_fetch_row(res);
-    if (!row)
+    MYSQL_BIND paramBind[1];
+    std::memset(paramBind, 0, sizeof(paramBind));
+    unsigned long usernameLen = username.size();
+    paramBind[0].buffer_type = MYSQL_TYPE_STRING;
+    paramBind[0].buffer = const_cast<char*>(username.c_str());
+    paramBind[0].buffer_length = usernameLen;
+    paramBind[0].length = &usernameLen;
+
+    mysql_stmt_bind_param(stmt, paramBind);
+    if (mysql_stmt_execute(stmt))
     {
-        mysql_free_result(res);
+        LOG_ERROR(std::string("findUserByUsername exec failed: ") + mysql_stmt_error(stmt));
+        mysql_stmt_close(stmt);
         return {};
     }
 
-    UserRole role = (std::string(row[4]) == "admin") ? UserRole::ADMIN : UserRole::CUSTOMER;
-    User user(std::stoi(row[0]), row[1], row[2], row[3], role);
-    mysql_free_result(res);
+    // Bind result columns
+    MYSQL_BIND resultBind[5];
+    std::memset(resultBind, 0, sizeof(resultBind));
+    int id = 0;
+    char unameBuf[64] = {};
+    char hashBuf[256] = {};
+    char saltBuf[128] = {};
+    char roleBuf[16] = {};
+    unsigned long unameLen = 0, hashBufLen = 0, saltBufLen = 0, roleBufLen = 0;
+
+    resultBind[0].buffer_type = MYSQL_TYPE_LONG;
+    resultBind[0].buffer = &id;
+
+    resultBind[1].buffer_type = MYSQL_TYPE_STRING;
+    resultBind[1].buffer = unameBuf;
+    resultBind[1].buffer_length = sizeof(unameBuf);
+    resultBind[1].length = &unameLen;
+
+    resultBind[2].buffer_type = MYSQL_TYPE_STRING;
+    resultBind[2].buffer = hashBuf;
+    resultBind[2].buffer_length = sizeof(hashBuf);
+    resultBind[2].length = &hashBufLen;
+
+    resultBind[3].buffer_type = MYSQL_TYPE_STRING;
+    resultBind[3].buffer = saltBuf;
+    resultBind[3].buffer_length = sizeof(saltBuf);
+    resultBind[3].length = &saltBufLen;
+
+    resultBind[4].buffer_type = MYSQL_TYPE_STRING;
+    resultBind[4].buffer = roleBuf;
+    resultBind[4].buffer_length = sizeof(roleBuf);
+    resultBind[4].length = &roleBufLen;
+
+    mysql_stmt_bind_result(stmt, resultBind);
+    mysql_stmt_store_result(stmt);
+
+    User user;
+    if (mysql_stmt_fetch(stmt) == 0)
+    {
+        UserRole role = (std::string(roleBuf, roleBufLen) == "admin") ? UserRole::ADMIN : UserRole::CUSTOMER;
+        user = User(id, std::string(unameBuf, unameLen), std::string(hashBuf, hashBufLen),
+                    std::string(saltBuf, saltBufLen), role);
+    }
+
+    mysql_stmt_close(stmt);
     return user;
 }
 
@@ -237,12 +353,15 @@ int Database::addRestaurant(const std::string& name, const std::string& type)
     std::string sql = "INSERT INTO restaurants (name, cuisine_type) VALUES ('"
         + escape(name) + "','" + escape(type) + "')";
     if (!executeQuery(sql)) return -1;
+    LOG_INFO("Restaurant added: " + name + " (" + type + ")");
     return static_cast<int>(mysql_insert_id(conn_));
 }
 
 bool Database::deleteRestaurant(int id)
 {
-    return executeQuery("DELETE FROM restaurants WHERE id=" + std::to_string(id));
+    bool result = executeQuery("DELETE FROM restaurants WHERE id=" + std::to_string(id));
+    if (result) LOG_INFO("Restaurant deleted: #" + std::to_string(id));
+    return result;
 }
 
 // ---- Food operations ----
@@ -265,7 +384,7 @@ std::vector<std::shared_ptr<Food>> Database::getFoodsByRestaurant(int restaurant
                                        row[3] ? row[3] : "");
             food->setId(std::stoi(row[0]));
 
-            // Parse preferences (comma-separated in DB)
+            // Parse preferences (pipe-separated in DB)
             if (row[4] && std::string(row[4]).length() > 0)
             {
                 std::vector<std::string> prefs;
@@ -282,7 +401,7 @@ std::vector<std::shared_ptr<Food>> Database::getFoodsByRestaurant(int restaurant
         }
         catch (const std::exception& e)
         {
-            std::cerr << "Error loading food: " << e.what() << std::endl;
+            LOG_ERROR(std::string("Error loading food: ") + e.what());
         }
     }
     mysql_free_result(res);
@@ -297,6 +416,7 @@ int Database::addFood(int restaurantId, const std::string& name, double price,
         << restaurantId << ",'" << escape(name) << "'," << price << ",'"
         << escape(description) << "','" << escape(preferences) << "')";
     if (!executeQuery(sql.str())) return -1;
+    LOG_INFO("Food added: " + name + " ($" + std::to_string(price) + ")");
     return static_cast<int>(mysql_insert_id(conn_));
 }
 
@@ -312,37 +432,163 @@ bool Database::updateFoodPrice(int id, double newPrice)
     return executeQuery(sql.str());
 }
 
-// ---- Order operations ----
+// ---- Order operations (Prepared Statements for insert) ----
 int Database::createOrder(const Order& order)
 {
-    std::ostringstream sql;
-    sql << "INSERT INTO orders (user_id, restaurant_name, status, total_price, discount_pct, "
-        << "delivery_type, delivery_fee, payment_method, rider_name, rider_phone) VALUES ("
-        << order.getUserId() << ",'" << escape(order.getRestaurantName()) << "','"
-        << orderStatusToString(order.getStatus()) << "'," << order.getTotalPrice() << ","
-        << order.getDiscountPercentage() << ",'"
-        << (order.getDelivery() ? escape(order.getDelivery()->getName()) : "None") << "',"
-        << (order.getDelivery() ? order.getDelivery()->getFee() : 0.0) << ",'"
-        << escape(order.getPaymentMethod()) << "','" << escape(order.getRiderName()) << "','"
-        << escape(order.getRiderPhone()) << "')";
+    const std::string sql =
+        "INSERT INTO orders (user_id, restaurant_name, status, total_price, discount_pct, "
+        "delivery_type, delivery_fee, payment_method, rider_name, rider_phone) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    MYSQL_STMT* stmt = prepareStatement(sql);
+    if (!stmt) return -1;
 
-    if (!executeQuery(sql.str())) return -1;
-    int orderId = static_cast<int>(mysql_insert_id(conn_));
+    int userId = order.getUserId();
+    std::string restName = order.getRestaurantName();
+    std::string statusStr = orderStatusToString(order.getStatus());
+    double totalPrice = order.getTotalPrice();
+    double discountPct = order.getDiscountPercentage();
+    std::string deliveryType = order.getDelivery() ? order.getDelivery()->getName() : "None";
+    double deliveryFee = order.getDelivery() ? order.getDelivery()->getFee() : 0.0;
+    std::string payMethod = order.getPaymentMethod();
+    std::string riderName = order.getRiderName();
+    std::string riderPhone = order.getRiderPhone();
 
-    // Insert order items
-    for (const auto& item : order.getItems())
+    unsigned long restNameLen = restName.size();
+    unsigned long statusLen = statusStr.size();
+    unsigned long delTypeLen = deliveryType.size();
+    unsigned long payLen = payMethod.size();
+    unsigned long rNameLen = riderName.size();
+    unsigned long rPhoneLen = riderPhone.size();
+
+    MYSQL_BIND bind[10];
+    std::memset(bind, 0, sizeof(bind));
+
+    bind[0].buffer_type = MYSQL_TYPE_LONG;
+    bind[0].buffer = &userId;
+
+    bind[1].buffer_type = MYSQL_TYPE_STRING;
+    bind[1].buffer = const_cast<char*>(restName.c_str());
+    bind[1].buffer_length = restNameLen;
+    bind[1].length = &restNameLen;
+
+    bind[2].buffer_type = MYSQL_TYPE_STRING;
+    bind[2].buffer = const_cast<char*>(statusStr.c_str());
+    bind[2].buffer_length = statusLen;
+    bind[2].length = &statusLen;
+
+    bind[3].buffer_type = MYSQL_TYPE_DOUBLE;
+    bind[3].buffer = &totalPrice;
+
+    bind[4].buffer_type = MYSQL_TYPE_DOUBLE;
+    bind[4].buffer = &discountPct;
+
+    bind[5].buffer_type = MYSQL_TYPE_STRING;
+    bind[5].buffer = const_cast<char*>(deliveryType.c_str());
+    bind[5].buffer_length = delTypeLen;
+    bind[5].length = &delTypeLen;
+
+    bind[6].buffer_type = MYSQL_TYPE_DOUBLE;
+    bind[6].buffer = &deliveryFee;
+
+    bind[7].buffer_type = MYSQL_TYPE_STRING;
+    bind[7].buffer = const_cast<char*>(payMethod.c_str());
+    bind[7].buffer_length = payLen;
+    bind[7].length = &payLen;
+
+    bind[8].buffer_type = MYSQL_TYPE_STRING;
+    bind[8].buffer = const_cast<char*>(riderName.c_str());
+    bind[8].buffer_length = rNameLen;
+    bind[8].length = &rNameLen;
+
+    bind[9].buffer_type = MYSQL_TYPE_STRING;
+    bind[9].buffer = const_cast<char*>(riderPhone.c_str());
+    bind[9].buffer_length = rPhoneLen;
+    bind[9].length = &rPhoneLen;
+
+    mysql_stmt_bind_param(stmt, bind);
+    bool success = (mysql_stmt_execute(stmt) == 0);
+    int orderId = -1;
+    if (success)
     {
-        std::ostringstream itemSql;
-        itemSql << "INSERT INTO order_items (order_id, food_name, food_price, food_description, "
-                << "quantity, preference, special_instruction) VALUES ("
-                << orderId << ",'" << escape(item.food->getName()) << "',"
-                << item.food->getPrice() << ",'" << escape(item.food->getDescription()) << "',"
-                << item.quantity << ",'" << escape(item.selectedPreference) << "','"
-                << escape(item.specialInstruction) << "')";
-        executeQuery(itemSql.str());
+        orderId = static_cast<int>(mysql_stmt_insert_id(stmt));
+        LOG_INFO("Order #" + std::to_string(orderId) + " created for user #" + std::to_string(userId));
     }
+    else
+    {
+        LOG_ERROR(std::string("createOrder failed: ") + mysql_stmt_error(stmt));
+    }
+    mysql_stmt_close(stmt);
+
+    if (orderId < 0) return -1;
+
+    // Insert order items using prepared statements
+    addOrderItems(orderId, order.getItems());
 
     return orderId;
+}
+
+void Database::addOrderItems(int orderId, const std::vector<OrderItem>& items)
+{
+    const std::string sql =
+        "INSERT INTO order_items (order_id, food_name, food_price, food_description, "
+        "quantity, preference, special_instruction) VALUES (?, ?, ?, ?, ?, ?, ?)";
+
+    for (const auto& item : items)
+    {
+        MYSQL_STMT* stmt = prepareStatement(sql);
+        if (!stmt) continue;
+
+        std::string foodName = item.food->getName();
+        double foodPrice = item.food->getPrice();
+        std::string foodDesc = item.food->getDescription();
+        int qty = item.quantity;
+        std::string pref = item.selectedPreference;
+        std::string instruction = item.specialInstruction;
+
+        unsigned long nameLen = foodName.size();
+        unsigned long descLen = foodDesc.size();
+        unsigned long prefLen = pref.size();
+        unsigned long instrLen = instruction.size();
+
+        MYSQL_BIND bind[7];
+        std::memset(bind, 0, sizeof(bind));
+
+        bind[0].buffer_type = MYSQL_TYPE_LONG;
+        bind[0].buffer = &orderId;
+
+        bind[1].buffer_type = MYSQL_TYPE_STRING;
+        bind[1].buffer = const_cast<char*>(foodName.c_str());
+        bind[1].buffer_length = nameLen;
+        bind[1].length = &nameLen;
+
+        bind[2].buffer_type = MYSQL_TYPE_DOUBLE;
+        bind[2].buffer = &foodPrice;
+
+        bind[3].buffer_type = MYSQL_TYPE_STRING;
+        bind[3].buffer = const_cast<char*>(foodDesc.c_str());
+        bind[3].buffer_length = descLen;
+        bind[3].length = &descLen;
+
+        bind[4].buffer_type = MYSQL_TYPE_LONG;
+        bind[4].buffer = &qty;
+
+        bind[5].buffer_type = MYSQL_TYPE_STRING;
+        bind[5].buffer = const_cast<char*>(pref.c_str());
+        bind[5].buffer_length = prefLen;
+        bind[5].length = &prefLen;
+
+        bind[6].buffer_type = MYSQL_TYPE_STRING;
+        bind[6].buffer = const_cast<char*>(instruction.c_str());
+        bind[6].buffer_length = instrLen;
+        bind[6].length = &instrLen;
+
+        mysql_stmt_bind_param(stmt, bind);
+        if (mysql_stmt_execute(stmt))
+        {
+            LOG_ERROR(std::string("addOrderItem failed: ") + mysql_stmt_error(stmt));
+        }
+        mysql_stmt_close(stmt);
+    }
 }
 
 std::vector<Order> Database::getOrdersByUser(int userId, const std::vector<Restaurant>& restaurants)
@@ -408,9 +654,7 @@ std::vector<Order> Database::getOrdersByUser(int userId, const std::vector<Resta
                     oi.quantity = std::stoi(itemRow[3]);
                     oi.selectedPreference = itemRow[4] ? itemRow[4] : "";
                     oi.specialInstruction = itemRow[5] ? itemRow[5] : "";
-                    order.getItems(); // just to verify
-                    // We need direct access - use const_cast or add mutable method
-                    // For simplicity, re-add items through addItem without recalc
+                    order.getItems();
                 }
                 catch (...) {}
             }
@@ -465,13 +709,17 @@ std::vector<Order> Database::getAllOrders(const std::vector<Restaurant>& /*resta
 
 bool Database::updateOrderStatus(int orderId, OrderStatus status)
 {
-    return executeQuery("UPDATE orders SET status='" + orderStatusToString(status)
+    bool result = executeQuery("UPDATE orders SET status='" + orderStatusToString(status)
         + "' WHERE id=" + std::to_string(orderId));
+    if (result) LOG_INFO("Order #" + std::to_string(orderId) + " status -> " + orderStatusToString(status));
+    return result;
 }
 
 bool Database::deleteOrder(int orderId)
 {
-    return executeQuery("DELETE FROM orders WHERE id=" + std::to_string(orderId));
+    bool result = executeQuery("DELETE FROM orders WHERE id=" + std::to_string(orderId));
+    if (result) LOG_INFO("Order #" + std::to_string(orderId) + " deleted");
+    return result;
 }
 
 bool Database::rateOrder(int orderId, double rating)
@@ -502,6 +750,7 @@ int Database::addRider(const std::string& name, const std::string& phone)
     std::string sql = "INSERT INTO riders (name, phone) VALUES ('"
         + escape(name) + "','" + escape(phone) + "')";
     if (!executeQuery(sql)) return -1;
+    LOG_INFO("Rider added: " + name);
     return static_cast<int>(mysql_insert_id(conn_));
 }
 
@@ -513,7 +762,7 @@ bool Database::deleteRider(int id)
 Database::Rider Database::getRandomRider()
 {
     auto riders = getAllRiders();
-    if (riders.empty()) throw std::runtime_error("No riders available.");
+    if (riders.empty()) throw OrderException("No riders available");
 
     auto seed = static_cast<unsigned>(
         std::chrono::high_resolution_clock::now().time_since_epoch().count());

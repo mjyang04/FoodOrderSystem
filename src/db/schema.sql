@@ -66,7 +66,7 @@ CREATE TABLE IF NOT EXISTS order_items (
     food_description TEXT,
     quantity INT NOT NULL,
     preference VARCHAR(100) DEFAULT '',
-    special_instruction TEXT DEFAULT '',
+    special_instruction TEXT,
     FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
 );
 

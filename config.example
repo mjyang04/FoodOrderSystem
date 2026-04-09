@@ -1,0 +1,18 @@
+# FoodOrderSystem Configuration
+# Environment variables override these values
+
+# Database settings
+DB_HOST=127.0.0.1
+DB_USER=root
+DB_PASS=
+DB_NAME=food_order_system
+DB_PORT=3306
+
+# Logging
+LOG_LEVEL=INFO
+LOG_FILE=
+
+# Application
+APP_MAX_ORDER_ITEMS=20
+APP_RATING_MIN=1.0
+APP_RATING_MAX=5.0

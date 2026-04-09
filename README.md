@@ -22,9 +22,14 @@ A full-featured food ordering console application built with modern C++17, featu
 
 ### Technical Highlights
 - **MySQL Database** - Relational data storage with foreign keys and cascading deletes
+- **Prepared Statements** - `mysql_stmt_*` API for SQL injection prevention
 - **Password Hashing** - SHA-256 with random salt (no plaintext passwords)
 - **Factory + Registry Pattern** - Extensible food type creation without if-else chains
 - **Smart Pointers** - `unique_ptr` / `shared_ptr` for automatic memory management (zero leaks)
+- **Custom Exceptions** - Typed exception hierarchy (`DatabaseException`, `AuthException`, `OrderException`)
+- **Logging System** - 4-level logger (DEBUG/INFO/WARN/ERROR) with file output support
+- **Config System** - File-based config with environment variable override
+- **Unit Tests** - 55 GoogleTest cases covering core logic (HashUtil, Food, Delivery, Order, Config)
 - **Input Validation** - Robust input handling, no crashes on invalid input
 - **Cross-platform** - Works on macOS, Linux, and Windows
 
@@ -61,10 +66,11 @@ Delivery (abstract)
 | Pattern | Class | Purpose |
 |---------|-------|---------|
 | **Factory + Registry** | `FoodFactory` | Creates Food objects by cuisine type string, avoids large if-else |
-| **Singleton** | `Database` | Manages single MySQL connection throughout application lifecycle |
+| **Singleton** | `Database`, `Logger`, `Config` | Single MySQL connection, centralized logging and config |
 | **Strategy** | `Delivery` | Interchangeable delivery options with different fees and times |
 | **Polymorphism** | `Food`, `Delivery` | Virtual `display()`, `clone()`, `getTypeName()` across all types |
 | **RAII** | Smart pointers | `unique_ptr<Delivery>` in Order, `shared_ptr<Food>` in Restaurant |
+| **Exception Hierarchy** | `Exceptions.h` | Typed exceptions for DB, Auth, Order, Validation errors |
 
 ### Database Schema (ER Diagram)
 
@@ -125,7 +131,16 @@ cmake .. -DCMAKE_BUILD_TYPE=Release
 cmake --build .
 ```
 
-### 3. Run
+### 3. Run Tests
+
+```bash
+cd build
+ctest --output-on-failure
+```
+
+55 unit tests cover: SHA-256 hashing, Food/FoodFactory, Delivery, Order logic, Config parser.
+
+### 4. Run
 
 ```bash
 # Set database credentials
@@ -161,10 +176,11 @@ chmod +x setup.sh
 FoodOrderSystem/
   CMakeLists.txt              # Build configuration
   setup.sh                    # One-click setup script
+  config.example              # Example config file
   README.md                   # This file
   CLAUDE.md                   # Development conventions
   src/
-    main.cpp                  # Entry point
+    main.cpp                  # Entry point (Config + Logger init)
     ui/
       Color.h                 # ANSI terminal colors
     model/
@@ -180,10 +196,19 @@ FoodOrderSystem/
       LoginSystem.h/cpp       # Login + Registration flow
       HashUtil.h/cpp          # SHA-256 hashing
     db/
-      Database.h/cpp          # MySQL singleton (CRUD)
+      Database.h/cpp          # MySQL singleton (prepared statements)
       schema.sql              # DDL + seed data
     util/
       InputHelper.h/cpp       # Input validation utilities
+      Exceptions.h            # Custom exception hierarchy
+      Logger.h                # Logging (DEBUG/INFO/WARN/ERROR)
+      Config.h                # Config file + env var reader
+  tests/
+    test_hashutil.cpp         # SHA-256 + salt tests
+    test_food.cpp             # Food classes + FoodFactory
+    test_delivery.cpp         # Delivery types + factory
+    test_order.cpp            # Order logic + pricing
+    test_config.cpp           # Config parser tests
 ```
 
 ## Seed Data
