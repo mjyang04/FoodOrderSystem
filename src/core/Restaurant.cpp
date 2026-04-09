@@ -2,9 +2,6 @@
 #include "../ui/Color.h"
 #include <iostream>
 
-Restaurant::Restaurant(const std::string& name, const std::string& type)
-    : name_(name), type_(type) {}
-
 Restaurant::Restaurant(int id, const std::string& name, const std::string& type)
     : id_(id), name_(name), type_(type) {}
 

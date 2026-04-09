@@ -654,7 +654,7 @@ std::vector<Order> Database::getOrdersByUser(int userId, const std::vector<Resta
                     oi.quantity = std::stoi(itemRow[3]);
                     oi.selectedPreference = itemRow[4] ? itemRow[4] : "";
                     oi.specialInstruction = itemRow[5] ? itemRow[5] : "";
-                    order.getItems();
+                    order.addItem(oi.food, oi.quantity, oi.specialInstruction, oi.selectedPreference);
                 }
                 catch (...) {}
             }

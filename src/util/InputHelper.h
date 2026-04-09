@@ -1,10 +1,8 @@
 #ifndef INPUTHELPER_H
 #define INPUTHELPER_H
 
-#include <iostream>
 #include <string>
 #include <limits>
-#include <functional>
 
 namespace InputHelper {
 
@@ -19,14 +17,8 @@ double readDouble(const std::string& prompt, double min = 0.0,
 // Read a non-empty string
 std::string readString(const std::string& prompt);
 
-// Read a line (can be empty)
-std::string readLine(const std::string& prompt);
-
 // Cross-platform clear screen
 void clearScreen();
-
-// Pause and wait for user input
-void pauseScreen();
 
 } // namespace InputHelper
 

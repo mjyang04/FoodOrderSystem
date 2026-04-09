@@ -1,5 +1,6 @@
 #include "InputHelper.h"
 #include "../ui/Color.h"
+#include <iostream>
 
 namespace InputHelper {
 
@@ -56,15 +57,6 @@ std::string readString(const std::string& prompt)
     }
 }
 
-std::string readLine(const std::string& prompt)
-{
-    std::string value;
-    std::cout << prompt;
-    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    std::getline(std::cin, value);
-    return value;
-}
-
 void clearScreen()
 {
 #ifdef _WIN32
@@ -72,13 +64,6 @@ void clearScreen()
 #else
     std::system("clear");
 #endif
-}
-
-void pauseScreen()
-{
-    std::cout << "\nPress Enter to continue...";
-    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    std::cin.get();
 }
 
 } // namespace InputHelper

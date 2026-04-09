@@ -368,6 +368,9 @@ FodyWeavers.xsd
 
 # Order data
 orders.csv
+
+# Claude Code
+CLAUDE.md
 /FoodOrderSystem.sln
 /FoodOrderSystem.vcxproj
 /FoodOrderSystem.vcxproj.filters

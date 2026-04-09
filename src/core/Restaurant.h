@@ -16,7 +16,6 @@ private:
 
 public:
     Restaurant() = default;
-    Restaurant(const std::string& name, const std::string& type);
     Restaurant(int id, const std::string& name, const std::string& type);
 
     int getId() const;
