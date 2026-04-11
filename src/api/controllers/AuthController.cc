@@ -1,5 +1,6 @@
 #include "AuthController.h"
 
+#include "api/JsonBody.h"
 #include "api/JsonEnvelope.h"
 #include "auth/User.h"
 #include "service/AuthService.h"
@@ -8,6 +9,8 @@
 
 using namespace drogon;
 using fos::api::errorResponse;
+using fos::api::requireJsonObject;
+using fos::api::requireStringField;
 using fos::api::statusForError;
 using fos::api::successResponse;
 using fos::service::defaultAuthService;
@@ -24,37 +27,22 @@ Json::Value userToJson(const User& user)
     return j;
 }
 
-// Extract and minimally validate a {username, password} JSON body.
-// On failure, writes an error response via callback and returns false.
+// Pull {username, password} from a JSON body via the shared helpers. Thin
+// wrapper that centralizes the auth-specific field list so register/login
+// stay in sync. Sprint 3 controllers should call requireJsonObject /
+// requireStringField / requireIntField directly.
 bool extractCredentials(
     const HttpRequestPtr& req,
     const std::function<void(const HttpResponsePtr&)>& callback,
     std::string& username,
     std::string& password)
 {
-    const auto bodyPtr = req->getJsonObject();
-    if (!bodyPtr)
-    {
-        callback(errorResponse(
-            k400BadRequest,
-            "INVALID_JSON",
-            "Request body must be a valid JSON object."));
-        return false;
-    }
+    auto bodyPtr = requireJsonObject(req, callback);
+    if (!bodyPtr) return false;
     const Json::Value& body = *bodyPtr;
 
-    if (!body.isMember("username") || !body["username"].isString() ||
-        !body.isMember("password") || !body["password"].isString())
-    {
-        callback(errorResponse(
-            k400BadRequest,
-            "VALIDATION_ERROR",
-            "Both 'username' and 'password' are required string fields."));
-        return false;
-    }
-
-    username = body["username"].asString();
-    password = body["password"].asString();
+    if (!requireStringField(body, "username", username, callback)) return false;
+    if (!requireStringField(body, "password", password, callback)) return false;
     return true;
 }
 
