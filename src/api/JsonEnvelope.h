@@ -75,6 +75,16 @@ inline drogon::HttpStatusCode statusForError(const std::string& code)
     if (code == err::kInvalidToken)       return drogon::k401Unauthorized;
     if (code == err::kUserExists)         return drogon::k409Conflict;
     if (code == err::kRestaurantNotFound) return drogon::k404NotFound;
+    // Sprint 3: order lifecycle error codes. kOrderNotFound also covers the
+    // "not your order" case — see OrderService::getOrder and plan Q1 for the
+    // existence-leak collapse rationale. kForbidden stays reserved in the
+    // vocabulary even though Sprint 3 does not emit it, so Sprint 4+ admin
+    // endpoints can distinguish 403 from 404 without re-drafting the map.
+    if (code == err::kOrderNotFound)      return drogon::k404NotFound;
+    if (code == err::kEmptyOrder)         return drogon::k400BadRequest;
+    if (code == err::kInvalidQuantity)    return drogon::k400BadRequest;
+    if (code == err::kMenuItemMismatch)   return drogon::k400BadRequest;
+    if (code == err::kForbidden)          return drogon::k403Forbidden;
     if (code == err::kDbUnavailable)      return drogon::k503ServiceUnavailable;
     if (code == err::kDbError)            return drogon::k500InternalServerError;
     if (code == err::kJwtNotConfigured)   return drogon::k500InternalServerError;

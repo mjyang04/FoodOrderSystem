@@ -139,6 +139,7 @@ if(Drogon_FOUND)
         src/api/controllers/HealthController.cc
         src/api/controllers/AuthController.cc
         src/api/controllers/RestaurantController.cc
+        src/api/controllers/OrderController.cc
         src/api/filters/JwtAuthFilter.cc
         src/service/JwtService.cpp
     )
