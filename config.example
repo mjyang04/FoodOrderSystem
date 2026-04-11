@@ -16,3 +16,12 @@ LOG_FILE=
 APP_MAX_ORDER_ITEMS=20
 APP_RATING_MIN=1.0
 APP_RATING_MAX=5.0
+
+# HTTP API server (fos_api binary, ignored by fos_cli)
+# HTTP_HOST binds the listener; use 0.0.0.0 inside Docker, 127.0.0.1 for local-only
+HTTP_HOST=0.0.0.0
+HTTP_PORT=8080
+# HTTP_THREADS is pinned to 1 in Sprint 1 because the legacy Database singleton
+# is not yet thread-safe. Raise it once the repository layer migrates to the
+# Drogon DbClient pool (Sprint 2).
+HTTP_THREADS=1

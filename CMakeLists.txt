@@ -1,9 +1,19 @@
 cmake_minimum_required(VERSION 3.16)
-project(FoodOrderSystem VERSION 3.0 LANGUAGES CXX)
+project(FoodOrderSystem VERSION 3.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+# Help find_package locate Homebrew-installed packages on macOS
+if(APPLE)
+    list(APPEND CMAKE_PREFIX_PATH
+        /opt/homebrew
+        /opt/homebrew/opt/drogon
+        /opt/homebrew/opt/jsoncpp
+        /opt/homebrew/opt/openssl@3
+    )
+endif()
 
 # Find MySQL client library
 find_package(PkgConfig QUIET)
@@ -81,17 +91,44 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang
     target_compile_options(fos_lib PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
-# Main executable
-add_executable(${PROJECT_NAME} src/main.cpp)
-target_link_libraries(${PROJECT_NAME} PRIVATE fos_lib)
+# ---- CLI executable (legacy interactive client) ----
+add_executable(fos_cli src/main.cpp)
+target_link_libraries(fos_cli PRIVATE fos_lib)
 
-# Compiler warnings for main
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
-    target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic)
+    target_compile_options(fos_cli PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
-# Install
-install(TARGETS ${PROJECT_NAME} DESTINATION bin)
+# ---- HTTP API executable (Drogon-based backend) ----
+find_package(Drogon CONFIG QUIET)
+
+if(Drogon_FOUND)
+    set(API_SOURCES
+        src/api/main_api.cpp
+        src/api/controllers/HealthController.cc
+    )
+
+    add_executable(fos_api ${API_SOURCES})
+    target_link_libraries(fos_api PRIVATE fos_lib Drogon::Drogon)
+    target_include_directories(fos_api PRIVATE ${CMAKE_SOURCE_DIR}/src)
+
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+        target_compile_options(fos_api PRIVATE -Wall -Wextra -Wpedantic)
+    endif()
+
+    message(STATUS "Drogon found: HTTP API target 'fos_api' enabled")
+    install(TARGETS fos_api DESTINATION bin)
+else()
+    message(WARNING
+        "Drogon not found. HTTP API target 'fos_api' will NOT be built.\n"
+        "Install it via:\n"
+        "  macOS:   brew install drogon\n"
+        "  Ubuntu:  see https://drogon.docsforge.com/master/installation/"
+    )
+endif()
+
+# Install CLI binary
+install(TARGETS fos_cli DESTINATION bin)
 
 # ---- Unit Tests (GoogleTest via FetchContent) ----
 option(BUILD_TESTS "Build unit tests" ON)

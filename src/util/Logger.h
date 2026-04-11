@@ -85,10 +85,40 @@ private:
     }
 };
 
-// Convenience macros
-#define LOG_DEBUG(msg) Logger::instance().debug(msg)
-#define LOG_INFO(msg)  Logger::instance().info(msg)
-#define LOG_WARN(msg)  Logger::instance().warn(msg)
-#define LOG_ERROR(msg) Logger::instance().error(msg)
+// Convenience macros.
+//
+// Support both plain-string and streaming usage:
+//   LOG_INFO("hello");
+//   LOG_INFO("port=" << port << " host=" << host);
+//
+// The do/while(0) wrapper makes the macro safe in unbraced if/else statements.
+//
+// Drogon's internal trantor logger also defines LOG_DEBUG/INFO/WARN/ERROR.
+// We undef those first so that in translation units which include both
+// drogon/drogon.h and this header, our project logger wins unambiguously.
+#ifdef LOG_DEBUG
+#undef LOG_DEBUG
+#endif
+#ifdef LOG_INFO
+#undef LOG_INFO
+#endif
+#ifdef LOG_WARN
+#undef LOG_WARN
+#endif
+#ifdef LOG_ERROR
+#undef LOG_ERROR
+#endif
+
+#define LOG_STREAM_(level, expr)                                          \
+    do {                                                                  \
+        std::ostringstream _fos_log_oss_;                                 \
+        _fos_log_oss_ << expr;                                            \
+        Logger::instance().level(_fos_log_oss_.str());                    \
+    } while (0)
+
+#define LOG_DEBUG(expr) LOG_STREAM_(debug, expr)
+#define LOG_INFO(expr)  LOG_STREAM_(info, expr)
+#define LOG_WARN(expr)  LOG_STREAM_(warn, expr)
+#define LOG_ERROR(expr) LOG_STREAM_(error, expr)
 
 #endif // LOGGER_H
