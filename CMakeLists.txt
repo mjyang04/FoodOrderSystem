@@ -5,6 +5,12 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# Sprint 2.5 (L-FETCHCONTENT-HOIST): hoisted here so the jwt-cpp block
+# (fos_api) and the googletest block (fos_tests) share a single include.
+# include() is idempotent in practice, but leaving two copies invites
+# drift if one block starts tweaking FetchContent defaults later.
+include(FetchContent)
+
 # Help find_package locate Homebrew-installed packages on macOS
 if(APPLE)
     list(APPEND CMAKE_PREFIX_PATH
@@ -115,7 +121,6 @@ if(Drogon_FOUND)
     # FetchContent. It is linked ONLY into fos_api, never into fos_lib or
     # fos_cli — the CLI does not need JWT, and keeping the library free of
     # jwt-cpp avoids propagating the dependency to the unit test target.
-    include(FetchContent)
     FetchContent_Declare(
         jwt-cpp
         GIT_REPOSITORY https://github.com/Thalhammer/jwt-cpp.git
@@ -168,7 +173,6 @@ install(TARGETS fos_cli DESTINATION bin)
 option(BUILD_TESTS "Build unit tests" ON)
 
 if(BUILD_TESTS)
-    include(FetchContent)
     FetchContent_Declare(
         googletest
         GIT_REPOSITORY https://github.com/google/googletest.git

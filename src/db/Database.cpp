@@ -339,7 +339,14 @@ std::vector<Restaurant> Database::getAllRestaurants()
 {
     std::lock_guard<std::recursive_mutex> lock(mutex_);
     std::vector<Restaurant> restaurants;
-    MYSQL_RES* res = executeSelect("SELECT id, name, cuisine_type FROM restaurants ORDER BY id");
+    // Sprint 2.5 (L-PAGINATION): server-side cap at 200 rows so an
+    // accidentally-large restaurants table cannot be walked in one
+    // request from /api/restaurants. The seed data ships with 14 rows,
+    // so the cap is invisible in practice. Sprint 3 will replace this
+    // with a proper page/limit query parameter once the catalogue can
+    // actually grow.
+    MYSQL_RES* res = executeSelect(
+        "SELECT id, name, cuisine_type FROM restaurants ORDER BY id LIMIT 200");
     if (!res) return restaurants;
 
     MYSQL_ROW row;
