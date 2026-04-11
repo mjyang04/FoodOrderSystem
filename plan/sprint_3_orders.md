@@ -1,8 +1,10 @@
 # Sprint 3 — Order Endpoints
 
+**Status:** ✅ **DONE** (2026-04-12). Shipped as commits `c6eb347` → `2d12ee7` → Step 5 fixup.
 **Branch:** `feature/rest-api`
 **Entry gate:** Sprint 2.5 closed on 2026-04-12 (2 HIGH + 7 MEDIUM + 9 LOW, ctest 58/58).
 **Goal:** Ship the HTTP surface for orders, built on top of the Sprint 2.5 hardened service/repo layer.
+**Exit:** ctest 77/77 green. Smoke test run end-to-end: golden path + 7 error paths + admin/non-owner authorization all verified against a live MySQL instance.
 
 ---
 
@@ -183,3 +185,67 @@ No Co-Authored-By lines (per global rule).
 | Delivery option is a free-form string | Whitelist in OrderService: `{"Standard", "Express", "Scheduled"}` matches the existing `Delivery` hierarchy. Unknown → `VALIDATION_ERROR`. |
 | `OrderDto` diverging from `core/Order` forever | Accept the duplication. Sprint 4/5 can unify if it becomes painful. |
 | Food price changes between menu load and order commit | Out of scope — price is captured at order creation time from whatever `getFoodsByRestaurant` returned. Real systems would snapshot the price row inside the transaction. |
+
+---
+
+## 8. Smoke-test results (2026-04-12, Step 5)
+
+Live run against MySQL `food_order_system` on 127.0.0.1:3306 with `fos_api` on 127.0.0.1:8080.
+
+### Golden path
+| # | Call | Result |
+|---|------|--------|
+| 1 | `POST /api/auth/register alice` | 201 `user_id=5, role=CUSTOMER` |
+| 2 | `POST /api/auth/login alice` | 200 JWT issued |
+| 3 | `GET /api/restaurants` | 200 `count=14` |
+| 4 | `GET /api/restaurants/1/menu` | 200 `count=5` Sichuan menu |
+| 5 | `POST /api/orders` (2× Kung Pao + 1× Mapo Tofu) | 201 `order_id=2, total_price=32.00` |
+| 6 | `GET /api/orders/2` as alice | 200, full DTO round-trip, `customer_id=5` |
+
+### Authorization (the important bits)
+| # | Call | Expected | Got |
+|---|------|----------|-----|
+| 7 | bob `GET /api/orders/2` (alice's order) | **404 ORDER_NOT_FOUND** (not 403, per plan Q1 existence-leak collapse) | ✅ 404 `ORDER_NOT_FOUND` |
+| 8 | alice `GET /api/orders` | only her own, `count=1` | ✅ |
+| 9a | bob `GET /api/orders` | empty, `count=0` | ✅ |
+| 9b | alice promoted to admin → re-login → `GET /api/orders` | all 3 orders visible (alice's #2 + bob's #3 + legacy CLI #1) | ✅ `count=3` |
+| 9c | admin `GET /api/orders/2` (other user's) | 200, full DTO | ✅ |
+
+### Error paths
+| # | Call | Expected | Got |
+|---|------|----------|-----|
+| E1 | `POST /api/orders` without JWT | 401 | ✅ 401 |
+| E2 | Empty `items` | 400 `EMPTY_ORDER` | ✅ |
+| E3 | `food_id=99` not on restaurant 1's menu | 400 `MENU_ITEM_MISMATCH` | ✅ |
+| E4 | `delivery_option="Drone"` | 400 `VALIDATION_ERROR` | ✅ |
+| E5 | `restaurant_id=999` | 404 `RESTAURANT_NOT_FOUND` | ✅ |
+| E6 | `quantity=0` | 400 `INVALID_QUANTITY` | ✅ |
+| E7 | Missing `restaurant_id` | 400 `VALIDATION_ERROR` | ✅ |
+
+### Fixups applied during Step 5
+
+- **`created_at` empty on POST response** — `OrderService::createOrder` was returning the locally-constructed DTO, which has no way to know the DB-assigned timestamp. Fixed by rehydrating via `findOrderById(newId)` right after insert. Fallback: if rehydrate itself fails (rare — concurrent delete or torn connection), return the in-memory DTO so the client still gets the `order_id` and can follow up with a GET. ctest still 77/77 after the fix.
+
+### Schema migration observed
+
+`Database::initializeSchema()`'s idempotent `ensureColumn` helper correctly applied the Sprint 3 migrations on first start:
+
+```
+Schema migrated: added orders.restaurant_id
+Schema migrated: added order_items.food_id
+```
+
+Subsequent `fos_api` starts are no-ops (confirmed by the silent second start during Step 5).
+
+### Trust boundary confirmed
+
+- Alice (user_id=5) posted orders; every persisted row had `customer_id=5` regardless of whether the JSON body tried to spoof it.
+- `readAuthContext(req).userId` overwrite happens AFTER body parse but BEFORE the service call, so there is no code path where a body field reaches `NewOrderDto::customerId`.
+
+### Clean-up
+
+- Test users `alice_sprint3`, `bob_sprint3` deleted.
+- Test orders 2, 3, 4 and their `order_items` deleted.
+- Alice's temporary `admin` role reverted to `customer` before user deletion.
+- Local `config` file (contained `DB_PASS` + generated `JWT_SECRET`) deleted — it is gitignored anyway.
+- Legacy CLI order #1 left untouched.

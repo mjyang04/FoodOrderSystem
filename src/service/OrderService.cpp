@@ -117,6 +117,23 @@ Result<OrderDto> OrderService::createOrder(const NewOrderDto& request)
         return Result<OrderDto>::failure(
             err::kDbError, "Failed to persist order");
     }
+
+    // Sprint 3 smoke-test finding: the locally-constructed dto has no
+    // created_at because only the database can stamp it. Rehydrate from
+    // findOrderById so the POST response carries the same shape GET does —
+    // otherwise the client has to do a follow-up read just to learn when
+    // its own order was created. The extra SELECT is negligible at Sprint 3
+    // scale and keeps the response contract consistent.
+    //
+    // Fallback: if the rehydrate itself fails right after a successful
+    // insert (rare — implies a concurrent delete or a broken connection),
+    // we still report success with the in-memory DTO. The client loses the
+    // timestamp but keeps the order_id and can do a follow-up GET.
+    auto persisted = orderRepo_.findOrderById(*newId);
+    if (persisted.has_value())
+    {
+        return Result<OrderDto>::success(std::move(*persisted));
+    }
     dto.orderId = *newId;
     return Result<OrderDto>::success(std::move(dto));
 }
