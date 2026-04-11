@@ -134,6 +134,7 @@ if(Drogon_FOUND)
 
     set(API_SOURCES
         src/api/main_api.cpp
+        src/api/AuthContext.cpp
         src/api/controllers/HealthController.cc
         src/api/controllers/AuthController.cc
         src/api/controllers/RestaurantController.cc

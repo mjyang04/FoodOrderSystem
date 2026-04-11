@@ -1,5 +1,6 @@
 #include "AuthController.h"
 
+#include "api/AuthContext.h"
 #include "api/JsonBody.h"
 #include "api/JsonEnvelope.h"
 #include "auth/User.h"
@@ -127,20 +128,15 @@ void AuthController::me(
     std::function<void(const HttpResponsePtr&)>&& callback)
 {
     // Filter already validated the token and stashed claims on the request
-    // attributes. If we got here, the claims are guaranteed to be present —
-    // any non-authenticated request was rejected upstream with 401.
-    //
-    // AttributesPtr::get<T> returns a default-constructed T when the key is
-    // missing, which is why the filter is the single source of truth for
-    // "am I authenticated". Do not add a parallel check here.
-    auto attrs = req->getAttributes();
-    const int userId = attrs->get<int>("user_id");
-    const std::string username = attrs->get<std::string>("username");
-    const int roleInt = attrs->get<int>("user_role");
+    // attributes. Sprint 2.5 (L-AUTH-CONTEXT): read them through the typed
+    // AuthContext helper instead of pulling raw ints out of the attributes
+    // map, so Sprint 3 order handlers have a single, test-friendly access
+    // point and never touch magic role numbers directly.
+    const auto ctx = fos::api::readAuthContext(req);
 
     Json::Value data;
-    data["id"] = userId;
-    data["username"] = username;
-    data["role"] = (roleInt == static_cast<int>(UserRole::ADMIN)) ? "ADMIN" : "CUSTOMER";
+    data["id"] = ctx.userId;
+    data["username"] = ctx.username;
+    data["role"] = ctx.isAdmin() ? "ADMIN" : "CUSTOMER";
     callback(successResponse(data));
 }
