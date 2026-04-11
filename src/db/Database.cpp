@@ -24,6 +24,7 @@ bool Database::connect(const std::string& host, const std::string& user,
                        const std::string& password, const std::string& dbName,
                        unsigned int port)
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     conn_ = mysql_init(nullptr);
     if (!conn_)
     {
@@ -45,6 +46,7 @@ bool Database::connect(const std::string& host, const std::string& user,
 
 void Database::disconnect()
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     if (conn_)
     {
         mysql_close(conn_);
@@ -55,6 +57,7 @@ void Database::disconnect()
 
 bool Database::isConnected() const
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     return conn_ != nullptr;
 }
 
@@ -107,6 +110,7 @@ MYSQL_STMT* Database::prepareStatement(const std::string& query)
 // ---- Schema Initialization ----
 void Database::initializeSchema()
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     const std::vector<std::string> statements = {
         R"(CREATE TABLE IF NOT EXISTS users (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -174,6 +178,7 @@ void Database::initializeSchema()
 // ---- User operations (Prepared Statements) ----
 bool Database::createUser(const std::string& username, const std::string& password, UserRole role)
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     if (userExists(username))
     {
         throw UserExistsException(username);
@@ -230,6 +235,7 @@ bool Database::createUser(const std::string& username, const std::string& passwo
 
 User Database::findUserByUsername(const std::string& username)
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     const std::string sql = "SELECT id, username, password_hash, salt, role FROM users WHERE username=?";
     MYSQL_STMT* stmt = prepareStatement(sql);
     if (!stmt) return {};
@@ -300,6 +306,7 @@ User Database::findUserByUsername(const std::string& username)
 
 bool Database::userExists(const std::string& username)
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     std::string sql = "SELECT COUNT(*) FROM users WHERE username='" + escape(username) + "'";
     MYSQL_RES* res = executeSelect(sql);
     if (!res) return false;
@@ -312,6 +319,7 @@ bool Database::userExists(const std::string& username)
 
 std::vector<User> Database::getAllUsers()
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     std::vector<User> users;
     MYSQL_RES* res = executeSelect("SELECT id, username, password_hash, salt, role FROM users");
     if (!res) return users;
@@ -329,6 +337,7 @@ std::vector<User> Database::getAllUsers()
 // ---- Restaurant operations ----
 std::vector<Restaurant> Database::getAllRestaurants()
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     std::vector<Restaurant> restaurants;
     MYSQL_RES* res = executeSelect("SELECT id, name, cuisine_type FROM restaurants ORDER BY id");
     if (!res) return restaurants;
@@ -350,6 +359,7 @@ std::vector<Restaurant> Database::getAllRestaurants()
 
 int Database::addRestaurant(const std::string& name, const std::string& type)
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     std::string sql = "INSERT INTO restaurants (name, cuisine_type) VALUES ('"
         + escape(name) + "','" + escape(type) + "')";
     if (!executeQuery(sql)) return -1;
@@ -359,6 +369,7 @@ int Database::addRestaurant(const std::string& name, const std::string& type)
 
 bool Database::deleteRestaurant(int id)
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     bool result = executeQuery("DELETE FROM restaurants WHERE id=" + std::to_string(id));
     if (result) LOG_INFO("Restaurant deleted: #" + std::to_string(id));
     return result;
@@ -368,6 +379,7 @@ bool Database::deleteRestaurant(int id)
 std::vector<std::shared_ptr<Food>> Database::getFoodsByRestaurant(int restaurantId,
                                                                    const std::string& cuisineType)
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     std::vector<std::shared_ptr<Food>> foods;
     std::string sql = "SELECT id, name, price, description, preferences FROM foods WHERE restaurant_id="
         + std::to_string(restaurantId);
@@ -411,6 +423,7 @@ std::vector<std::shared_ptr<Food>> Database::getFoodsByRestaurant(int restaurant
 int Database::addFood(int restaurantId, const std::string& name, double price,
                       const std::string& description, const std::string& preferences)
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     std::ostringstream sql;
     sql << "INSERT INTO foods (restaurant_id, name, price, description, preferences) VALUES ("
         << restaurantId << ",'" << escape(name) << "'," << price << ",'"
@@ -422,11 +435,13 @@ int Database::addFood(int restaurantId, const std::string& name, double price,
 
 bool Database::deleteFood(int id)
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     return executeQuery("DELETE FROM foods WHERE id=" + std::to_string(id));
 }
 
 bool Database::updateFoodPrice(int id, double newPrice)
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     std::ostringstream sql;
     sql << "UPDATE foods SET price=" << newPrice << " WHERE id=" << id;
     return executeQuery(sql.str());
@@ -435,6 +450,7 @@ bool Database::updateFoodPrice(int id, double newPrice)
 // ---- Order operations (Prepared Statements for insert) ----
 int Database::createOrder(const Order& order)
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     const std::string sql =
         "INSERT INTO orders (user_id, restaurant_name, status, total_price, discount_pct, "
         "delivery_type, delivery_fee, payment_method, rider_name, rider_phone) "
@@ -529,6 +545,7 @@ int Database::createOrder(const Order& order)
 
 void Database::addOrderItems(int orderId, const std::vector<OrderItem>& items)
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     const std::string sql =
         "INSERT INTO order_items (order_id, food_name, food_price, food_description, "
         "quantity, preference, special_instruction) VALUES (?, ?, ?, ?, ?, ?, ?)";
@@ -593,6 +610,7 @@ void Database::addOrderItems(int orderId, const std::vector<OrderItem>& items)
 
 std::vector<Order> Database::getOrdersByUser(int userId, const std::vector<Restaurant>& restaurants)
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     std::vector<Order> orders;
     std::string sql = "SELECT id, user_id, restaurant_name, status, total_price, discount_pct, "
         "delivery_type, delivery_fee, payment_method, rider_name, rider_phone, rating, created_at "
@@ -669,6 +687,7 @@ std::vector<Order> Database::getOrdersByUser(int userId, const std::vector<Resta
 
 std::vector<Order> Database::getAllOrders(const std::vector<Restaurant>& /*restaurants*/)
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     std::vector<Order> orders;
     std::string sql = "SELECT o.id, o.user_id, u.username, o.restaurant_name, o.status, o.total_price, "
         "o.discount_pct, o.delivery_type, o.delivery_fee, o.payment_method, o.rider_name, "
@@ -709,6 +728,7 @@ std::vector<Order> Database::getAllOrders(const std::vector<Restaurant>& /*resta
 
 bool Database::updateOrderStatus(int orderId, OrderStatus status)
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     bool result = executeQuery("UPDATE orders SET status='" + orderStatusToString(status)
         + "' WHERE id=" + std::to_string(orderId));
     if (result) LOG_INFO("Order #" + std::to_string(orderId) + " status -> " + orderStatusToString(status));
@@ -717,6 +737,7 @@ bool Database::updateOrderStatus(int orderId, OrderStatus status)
 
 bool Database::deleteOrder(int orderId)
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     bool result = executeQuery("DELETE FROM orders WHERE id=" + std::to_string(orderId));
     if (result) LOG_INFO("Order #" + std::to_string(orderId) + " deleted");
     return result;
@@ -724,6 +745,7 @@ bool Database::deleteOrder(int orderId)
 
 bool Database::rateOrder(int orderId, double rating)
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     std::ostringstream sql;
     sql << "UPDATE orders SET rating=" << rating << " WHERE id=" << orderId;
     return executeQuery(sql.str());
@@ -732,6 +754,7 @@ bool Database::rateOrder(int orderId, double rating)
 // ---- Rider operations ----
 std::vector<Database::Rider> Database::getAllRiders()
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     std::vector<Rider> riders;
     MYSQL_RES* res = executeSelect("SELECT id, name, phone FROM riders");
     if (!res) return riders;
@@ -747,6 +770,7 @@ std::vector<Database::Rider> Database::getAllRiders()
 
 int Database::addRider(const std::string& name, const std::string& phone)
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     std::string sql = "INSERT INTO riders (name, phone) VALUES ('"
         + escape(name) + "','" + escape(phone) + "')";
     if (!executeQuery(sql)) return -1;
@@ -756,11 +780,13 @@ int Database::addRider(const std::string& name, const std::string& phone)
 
 bool Database::deleteRider(int id)
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     return executeQuery("DELETE FROM riders WHERE id=" + std::to_string(id));
 }
 
 Database::Rider Database::getRandomRider()
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     auto riders = getAllRiders();
     if (riders.empty()) throw OrderException("No riders available");
 
@@ -774,6 +800,7 @@ Database::Rider Database::getRandomRider()
 // ---- Analytics ----
 double Database::getTotalSpentByUser(int userId)
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     std::string sql = "SELECT COALESCE(SUM(total_price + delivery_fee), 0) FROM orders WHERE user_id="
         + std::to_string(userId);
     MYSQL_RES* res = executeSelect(sql);
@@ -787,6 +814,7 @@ double Database::getTotalSpentByUser(int userId)
 
 std::string Database::getFavoriteRestaurant(int userId)
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     std::string sql = "SELECT restaurant_name, COUNT(*) as cnt FROM orders WHERE user_id="
         + std::to_string(userId) + " GROUP BY restaurant_name ORDER BY cnt DESC LIMIT 1";
     MYSQL_RES* res = executeSelect(sql);
@@ -800,6 +828,7 @@ std::string Database::getFavoriteRestaurant(int userId)
 
 int Database::getTotalOrdersByUser(int userId)
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     std::string sql = "SELECT COUNT(*) FROM orders WHERE user_id=" + std::to_string(userId);
     MYSQL_RES* res = executeSelect(sql);
     if (!res) return 0;
@@ -813,6 +842,7 @@ int Database::getTotalOrdersByUser(int userId)
 // ---- Search & Filter ----
 std::vector<Restaurant> Database::searchRestaurants(const std::string& keyword)
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     std::vector<Restaurant> results;
     std::string sql = "SELECT id, name, cuisine_type FROM restaurants WHERE name LIKE '%"
         + escape(keyword) + "%' OR cuisine_type LIKE '%" + escape(keyword) + "%'";
@@ -833,6 +863,7 @@ std::vector<Restaurant> Database::searchRestaurants(const std::string& keyword)
 
 std::vector<std::shared_ptr<Food>> Database::searchFoodByPriceRange(double minPrice, double maxPrice)
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     std::vector<std::shared_ptr<Food>> results;
     std::ostringstream sql;
     sql << "SELECT f.id, f.name, f.price, f.description, r.cuisine_type "

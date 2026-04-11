@@ -1,6 +1,7 @@
 #ifndef DATABASE_H
 #define DATABASE_H
 
+#include <mutex>
 #include <string>
 #include <vector>
 #include <memory>
@@ -78,6 +79,7 @@ private:
     Database& operator=(const Database&) = delete;
 
     MYSQL* conn_ = nullptr;
+    mutable std::recursive_mutex mutex_;
 
     // Helper: execute query and handle errors
     bool executeQuery(const std::string& query);
