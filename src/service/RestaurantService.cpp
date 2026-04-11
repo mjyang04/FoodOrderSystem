@@ -6,13 +6,15 @@
 
 namespace fos::service {
 
-std::vector<Restaurant> RestaurantService::listAll()
+Result<std::vector<Restaurant>> RestaurantService::listAll()
 {
     if (!repo_.isConnected())
     {
-        return {};
+        return Result<std::vector<Restaurant>>::failure(
+            err::kDbUnavailable,
+            "Database is not connected.");
     }
-    return repo_.getAllRestaurants();
+    return Result<std::vector<Restaurant>>::success(repo_.getAllRestaurants());
 }
 
 Result<MenuView> RestaurantService::getMenu(int restaurantId)

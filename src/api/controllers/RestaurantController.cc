@@ -49,8 +49,22 @@ void RestaurantController::listAll(
 {
     (void)req;
 
-    const auto restaurants = defaultRestaurantService().listAll();
+    // Sprint 2.5 (M-LISTALL-PROTOCOL): listAll() now returns Result so
+    // "no rows yet" (200 with []) is distinguishable from "DB unreachable"
+    // (503). Keep the "no rows" success path returning the same envelope
+    // shape it always did — clients that depended on an empty list from
+    // 200 still work.
+    auto result = defaultRestaurantService().listAll();
+    if (!result)
+    {
+        callback(errorResponse(
+            statusForError(result.error().code),
+            result.error().code,
+            result.error().message));
+        return;
+    }
 
+    const auto& restaurants = result.value();
     Json::Value arr(Json::arrayValue);
     for (const auto& r : restaurants)
     {
