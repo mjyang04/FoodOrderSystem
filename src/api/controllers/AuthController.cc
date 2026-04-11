@@ -117,3 +117,26 @@ void AuthController::login(
     data["user"] = userToJson(user);
     callback(successResponse(data));
 }
+
+void AuthController::me(
+    const HttpRequestPtr& req,
+    std::function<void(const HttpResponsePtr&)>&& callback)
+{
+    // Filter already validated the token and stashed claims on the request
+    // attributes. If we got here, the claims are guaranteed to be present —
+    // any non-authenticated request was rejected upstream with 401.
+    //
+    // AttributesPtr::get<T> returns a default-constructed T when the key is
+    // missing, which is why the filter is the single source of truth for
+    // "am I authenticated". Do not add a parallel check here.
+    auto attrs = req->getAttributes();
+    const int userId = attrs->get<int>("user_id");
+    const std::string username = attrs->get<std::string>("username");
+    const int roleInt = attrs->get<int>("user_role");
+
+    Json::Value data;
+    data["id"] = userId;
+    data["username"] = username;
+    data["role"] = (roleInt == static_cast<int>(UserRole::ADMIN)) ? "ADMIN" : "CUSTOMER";
+    callback(successResponse(data));
+}
