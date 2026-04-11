@@ -3,6 +3,7 @@
 #include <cctype>
 
 #include "db/Database.h"
+#include "service/ErrorCodes.h"
 #include "util/Logger.h"
 
 namespace fos::service {
@@ -21,7 +22,7 @@ Result<void> AuthService::validateUsername(const std::string& username)
     if (username.size() < kMinUsernameLen || username.size() > kMaxUsernameLen)
     {
         return Result<void>::failure(
-            "VALIDATION_ERROR",
+            err::kValidationError,
             "Username must be 3-32 characters long.");
     }
     for (char c : username)
@@ -30,7 +31,7 @@ Result<void> AuthService::validateUsername(const std::string& username)
         if (!std::isalnum(uc) && c != '_' && c != '-')
         {
             return Result<void>::failure(
-                "VALIDATION_ERROR",
+                err::kValidationError,
                 "Username may only contain letters, digits, '_' or '-'.");
         }
     }
@@ -42,7 +43,7 @@ Result<void> AuthService::validatePassword(const std::string& password)
     if (password.size() < kMinPasswordLen || password.size() > kMaxPasswordLen)
     {
         return Result<void>::failure(
-            "VALIDATION_ERROR",
+            err::kValidationError,
             "Password must be 6-128 characters long.");
     }
     return Result<void>::success();
@@ -65,14 +66,14 @@ Result<int> AuthService::registerUser(const std::string& username,
     if (!db.isConnected())
     {
         return Result<int>::failure(
-            "DB_UNAVAILABLE",
+            err::kDbUnavailable,
             "Database is not connected; cannot register users.");
     }
 
     if (db.userExists(username))
     {
         return Result<int>::failure(
-            "USER_EXISTS",
+            err::kUserExists,
             "Username is already taken.");
     }
 
@@ -80,7 +81,7 @@ Result<int> AuthService::registerUser(const std::string& username,
     {
         LOG_ERROR("AuthService: createUser failed for '" << username << "'");
         return Result<int>::failure(
-            "DB_ERROR",
+            err::kDbError,
             "Could not create user due to a database error.");
     }
 
@@ -91,7 +92,7 @@ Result<int> AuthService::registerUser(const std::string& username,
         LOG_ERROR("AuthService: created user '" << username
                    << "' but subsequent lookup returned id=0");
         return Result<int>::failure(
-            "DB_ERROR",
+            err::kDbError,
             "User was created but could not be retrieved.");
     }
     return Result<int>::success(created.getId());
@@ -106,7 +107,7 @@ Result<User> AuthService::authenticate(const std::string& username,
     if (!validateUsername(username).ok() || !validatePassword(password).ok())
     {
         return Result<User>::failure(
-            "INVALID_CREDENTIALS",
+            err::kInvalidCredentials,
             "Invalid username or password.");
     }
 
@@ -114,7 +115,7 @@ Result<User> AuthService::authenticate(const std::string& username,
     if (!db.isConnected())
     {
         return Result<User>::failure(
-            "DB_UNAVAILABLE",
+            err::kDbUnavailable,
             "Database is not connected; cannot authenticate.");
     }
 
@@ -122,7 +123,7 @@ Result<User> AuthService::authenticate(const std::string& username,
     if (user.getId() == 0 || !user.verifyPassword(password))
     {
         return Result<User>::failure(
-            "INVALID_CREDENTIALS",
+            err::kInvalidCredentials,
             "Invalid username or password.");
     }
 

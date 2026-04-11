@@ -3,11 +3,13 @@
 #include <string>
 
 #include "api/JsonEnvelope.h"
+#include "service/ErrorCodes.h"
 #include "service/JwtService.h"
 
 using namespace drogon;
 using fos::api::errorResponse;
 using fos::service::JwtService;
+namespace err = fos::service::err;
 
 namespace {
 constexpr const char* kBearerPrefix = "Bearer ";
@@ -24,7 +26,7 @@ void JwtAuthFilter::doFilter(const HttpRequestPtr& req,
     {
         fcb(errorResponse(
             k401Unauthorized,
-            "MISSING_TOKEN",
+            err::kMissingToken,
             "Authorization header with 'Bearer <token>' is required."));
         return;
     }

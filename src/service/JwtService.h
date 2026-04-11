@@ -37,19 +37,24 @@ class JwtService
 {
 public:
     // Configure the signing secret and default TTL. Must be called once at
-    // startup before any issue/verify calls.
+    // startup before any issue/verify calls. Warns if the secret is shorter
+    // than 32 bytes (the HMAC-SHA256 key size).
     static void configure(std::string secret, int ttlHours);
 
-    // Sign a new token for the given user. Returns an empty string if
-    // configure() has not been called yet.
-    static std::string issueToken(int userId,
-                                  const std::string& username,
-                                  UserRole role);
+    // Sign a new token for the given user. Error codes:
+    //   JWT_NOT_CONFIGURED  - configure() was never called or secret is empty
+    //   INVALID_TOKEN       - jwt-cpp failed to sign (very unusual)
+    static Result<std::string> issueToken(int userId,
+                                          const std::string& username,
+                                          UserRole role);
 
     // Verify a Bearer token and extract claims. Error codes:
     //   JWT_NOT_CONFIGURED  - configure() was never called
     //   MISSING_TOKEN       - empty token string
     //   INVALID_TOKEN       - signature mismatch, expired, or malformed
+    //
+    // jwt-cpp exception details are logged at DEBUG/WARN server-side but
+    // never forwarded to the caller, to avoid leaking library internals.
     static Result<JwtClaims> verifyToken(const std::string& token);
 
 private:

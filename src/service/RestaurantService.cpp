@@ -3,6 +3,7 @@
 #include <string>
 
 #include "db/Database.h"
+#include "service/ErrorCodes.h"
 
 namespace fos::service {
 
@@ -22,7 +23,7 @@ Result<MenuView> RestaurantService::getMenu(int restaurantId)
     if (!db.isConnected())
     {
         return Result<MenuView>::failure(
-            "DB_UNAVAILABLE",
+            err::kDbUnavailable,
             "Database is not connected.");
     }
 
@@ -39,7 +40,7 @@ Result<MenuView> RestaurantService::getMenu(int restaurantId)
     if (target == nullptr)
     {
         return Result<MenuView>::failure(
-            "RESTAURANT_NOT_FOUND",
+            err::kRestaurantNotFound,
             "No restaurant with id " + std::to_string(restaurantId) + ".");
     }
 

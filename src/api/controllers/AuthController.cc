@@ -3,6 +3,7 @@
 #include "api/JsonEnvelope.h"
 #include "auth/User.h"
 #include "service/AuthService.h"
+#include "service/ErrorCodes.h"
 #include "service/JwtService.h"
 
 using namespace drogon;
@@ -10,6 +11,7 @@ using fos::api::errorResponse;
 using fos::api::successResponse;
 using fos::service::AuthService;
 using fos::service::JwtService;
+namespace err = fos::service::err;
 
 namespace {
 
@@ -25,12 +27,15 @@ Json::Value userToJson(const User& user)
 // Map service-layer error codes to HTTP status codes.
 HttpStatusCode statusForError(const std::string& code)
 {
-    if (code == "VALIDATION_ERROR")    return k400BadRequest;
-    if (code == "INVALID_CREDENTIALS") return k401Unauthorized;
-    if (code == "USER_EXISTS")         return k409Conflict;
-    if (code == "DB_UNAVAILABLE")      return k503ServiceUnavailable;
-    if (code == "DB_ERROR")            return k500InternalServerError;
-    if (code == "JWT_NOT_CONFIGURED")  return k500InternalServerError;
+    if (code == err::kValidationError)    return k400BadRequest;
+    if (code == err::kInvalidCredentials) return k401Unauthorized;
+    if (code == err::kUserExists)         return k409Conflict;
+    if (code == err::kRestaurantNotFound) return k404NotFound;
+    if (code == err::kMissingToken)       return k401Unauthorized;
+    if (code == err::kInvalidToken)       return k401Unauthorized;
+    if (code == err::kDbUnavailable)      return k503ServiceUnavailable;
+    if (code == err::kDbError)            return k500InternalServerError;
+    if (code == err::kJwtNotConfigured)   return k500InternalServerError;
     return k400BadRequest;
 }
 
@@ -123,19 +128,19 @@ void AuthController::login(
     }
 
     const User& user = result.value();
-    const std::string token = JwtService::issueToken(
+    auto tokenResult = JwtService::issueToken(
         user.getId(), user.getUsername(), user.getRole());
-    if (token.empty())
+    if (!tokenResult)
     {
         callback(errorResponse(
-            k500InternalServerError,
-            "JWT_NOT_CONFIGURED",
-            "JWT signing is not configured on the server."));
+            statusForError(tokenResult.error().code),
+            tokenResult.error().code,
+            tokenResult.error().message));
         return;
     }
 
     Json::Value data;
-    data["token"] = token;
+    data["token"] = tokenResult.value();
     data["user"] = userToJson(user);
     callback(successResponse(data));
 }

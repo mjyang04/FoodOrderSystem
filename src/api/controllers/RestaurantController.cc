@@ -3,12 +3,14 @@
 #include "api/JsonEnvelope.h"
 #include "core/Restaurant.h"
 #include "model/Food.h"
+#include "service/ErrorCodes.h"
 #include "service/RestaurantService.h"
 
 using namespace drogon;
 using fos::api::errorResponse;
 using fos::api::successResponse;
 using fos::service::RestaurantService;
+namespace err = fos::service::err;
 
 namespace {
 
@@ -72,11 +74,11 @@ void RestaurantController::getMenu(
     if (!result)
     {
         HttpStatusCode status = k500InternalServerError;
-        if (result.error().code == "RESTAURANT_NOT_FOUND")
+        if (result.error().code == err::kRestaurantNotFound)
         {
             status = k404NotFound;
         }
-        else if (result.error().code == "DB_UNAVAILABLE")
+        else if (result.error().code == err::kDbUnavailable)
         {
             status = k503ServiceUnavailable;
         }

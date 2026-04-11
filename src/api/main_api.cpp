@@ -52,7 +52,10 @@ bool connectDatabase(Config& config)
         return false;
     }
 
-    LOG_INFO("Database connected: " << dbUser << "@" << dbHost << ":" << dbPort
+    // Intentionally omit dbUser from the INFO line so log aggregation
+    // pipelines never persist the DB account name alongside app traces
+    // (Sprint 2 security review finding S-H4).
+    LOG_INFO("Database connected: " << dbHost << ":" << dbPort
              << "/" << dbName);
     db.initializeSchema();
     return true;
