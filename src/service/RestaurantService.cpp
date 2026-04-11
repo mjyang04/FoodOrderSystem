@@ -24,17 +24,11 @@ Result<MenuView> RestaurantService::getMenu(int restaurantId)
             "Database is not connected.");
     }
 
-    const auto restaurants = repo_.getAllRestaurants();
-    const Restaurant* target = nullptr;
-    for (const auto& r : restaurants)
-    {
-        if (r.getId() == restaurantId)
-        {
-            target = &r;
-            break;
-        }
-    }
-    if (target == nullptr)
+    // Sprint 2.5 (M-GETMENU): single indexed lookup instead of scanning the
+    // whole restaurants table. Sprint 3 will wire orders to menus via this
+    // same method, so the O(N) path must not survive into Sprint 3.
+    auto target = repo_.findRestaurantById(restaurantId);
+    if (!target)
     {
         return Result<MenuView>::failure(
             err::kRestaurantNotFound,

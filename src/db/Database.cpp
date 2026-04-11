@@ -357,6 +357,63 @@ std::vector<Restaurant> Database::getAllRestaurants()
     return restaurants;
 }
 
+std::optional<Restaurant> Database::findRestaurantById(int id)
+{
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    const std::string sql = "SELECT id, name, cuisine_type FROM restaurants WHERE id=?";
+    MYSQL_STMT* stmt = prepareStatement(sql);
+    if (!stmt) return std::nullopt;
+
+    MYSQL_BIND paramBind[1];
+    std::memset(paramBind, 0, sizeof(paramBind));
+    int idParam = id;
+    paramBind[0].buffer_type = MYSQL_TYPE_LONG;
+    paramBind[0].buffer = &idParam;
+
+    mysql_stmt_bind_param(stmt, paramBind);
+    if (mysql_stmt_execute(stmt))
+    {
+        LOG_ERROR(std::string("findRestaurantById exec failed: ") + mysql_stmt_error(stmt));
+        mysql_stmt_close(stmt);
+        return std::nullopt;
+    }
+
+    MYSQL_BIND resultBind[3];
+    std::memset(resultBind, 0, sizeof(resultBind));
+    int rowId = 0;
+    char nameBuf[128] = {};
+    char typeBuf[64] = {};
+    unsigned long nameLen = 0;
+    unsigned long typeLen = 0;
+
+    resultBind[0].buffer_type = MYSQL_TYPE_LONG;
+    resultBind[0].buffer = &rowId;
+
+    resultBind[1].buffer_type = MYSQL_TYPE_STRING;
+    resultBind[1].buffer = nameBuf;
+    resultBind[1].buffer_length = sizeof(nameBuf);
+    resultBind[1].length = &nameLen;
+
+    resultBind[2].buffer_type = MYSQL_TYPE_STRING;
+    resultBind[2].buffer = typeBuf;
+    resultBind[2].buffer_length = sizeof(typeBuf);
+    resultBind[2].length = &typeLen;
+
+    mysql_stmt_bind_result(stmt, resultBind);
+    mysql_stmt_store_result(stmt);
+
+    std::optional<Restaurant> result;
+    if (mysql_stmt_fetch(stmt) == 0)
+    {
+        result.emplace(rowId,
+                       std::string(nameBuf, nameLen),
+                       std::string(typeBuf, typeLen));
+    }
+
+    mysql_stmt_close(stmt);
+    return result;
+}
+
 int Database::addRestaurant(const std::string& name, const std::string& type)
 {
     std::lock_guard<std::recursive_mutex> lock(mutex_);

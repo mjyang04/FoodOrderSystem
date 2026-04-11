@@ -2,6 +2,7 @@
 #define DATABASE_H
 
 #include <mutex>
+#include <optional>
 #include <string>
 #include <vector>
 #include <memory>
@@ -41,6 +42,7 @@ public:
 
     // ---- Restaurant operations ----
     std::vector<Restaurant> getAllRestaurants() override;
+    std::optional<Restaurant> findRestaurantById(int id) override;
     int addRestaurant(const std::string& name, const std::string& type);
     bool deleteRestaurant(int id);
 

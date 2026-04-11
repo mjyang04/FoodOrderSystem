@@ -6,6 +6,7 @@
 // unit-tested without a live MySQL).
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -20,6 +21,11 @@ public:
     virtual bool isConnected() const = 0;
 
     virtual std::vector<Restaurant> getAllRestaurants() = 0;
+
+    // Look up a single restaurant by primary key. Returns std::nullopt when
+    // no row matches. Added in Sprint 2.5 (M-GETMENU) so RestaurantService
+    // stops full-table-scanning inside getMenu().
+    virtual std::optional<Restaurant> findRestaurantById(int id) = 0;
 
     virtual std::vector<std::shared_ptr<Food>> getFoodsByRestaurant(
         int restaurantId, const std::string& cuisineType) = 0;
