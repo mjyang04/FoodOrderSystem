@@ -7,8 +7,13 @@
 // menu) remain on the legacy admin flows in Sprint 2 — they land in
 // Sprint 3 alongside the order endpoints.
 //
+// Sprint 2.5 (H-DI) turned this into an instance class that takes an
+// IRestaurantRepo& in its constructor so it can be unit-tested against an
+// in-memory fake. For the production HTTP path, call
+// DefaultServices::defaultRestaurantService().
+//
 // Error codes:
-//   DB_UNAVAILABLE         - Database singleton is not connected
+//   DB_UNAVAILABLE         - Underlying repo is not connected
 //   RESTAURANT_NOT_FOUND   - No row matches the requested id
 
 #include <memory>
@@ -16,6 +21,7 @@
 #include <vector>
 
 #include "core/Restaurant.h"
+#include "db/IRestaurantRepo.h"
 #include "model/Food.h"
 #include "service/Result.h"
 
@@ -32,12 +38,17 @@ struct MenuView
 class RestaurantService
 {
 public:
+    explicit RestaurantService(IRestaurantRepo& repo) : repo_(repo) {}
+
     // Returns every restaurant row. An empty vector is a valid result
     // (no restaurants yet); callers should not treat it as an error.
-    static std::vector<Restaurant> listAll();
+    std::vector<Restaurant> listAll();
 
     // Returns the full menu (restaurant metadata + foods) for a single id.
-    static Result<MenuView> getMenu(int restaurantId);
+    Result<MenuView> getMenu(int restaurantId);
+
+private:
+    IRestaurantRepo& repo_;
 };
 
 } // namespace fos::service

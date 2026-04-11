@@ -3,13 +3,14 @@
 #include "api/JsonEnvelope.h"
 #include "auth/User.h"
 #include "service/AuthService.h"
+#include "service/DefaultServices.h"
 #include "service/ErrorCodes.h"
 #include "service/JwtService.h"
 
 using namespace drogon;
 using fos::api::errorResponse;
 using fos::api::successResponse;
-using fos::service::AuthService;
+using fos::service::defaultAuthService;
 using fos::service::JwtService;
 namespace err = fos::service::err;
 
@@ -89,7 +90,7 @@ void AuthController::registerUser(
     // Role is forced to CUSTOMER via the HTTP entry point. Admin accounts
     // must be created through the CLI or seed SQL. Sprint 3 may introduce an
     // invite/bootstrap flow.
-    auto result = AuthService::registerUser(username, password, UserRole::CUSTOMER);
+    auto result = defaultAuthService().registerUser(username, password, UserRole::CUSTOMER);
     if (!result)
     {
         callback(errorResponse(
@@ -117,7 +118,7 @@ void AuthController::login(
         return;
     }
 
-    auto result = AuthService::authenticate(username, password);
+    auto result = defaultAuthService().authenticate(username, password);
     if (!result)
     {
         callback(errorResponse(

@@ -2,7 +2,6 @@
 
 #include <cctype>
 
-#include "db/Database.h"
 #include "service/ErrorCodes.h"
 #include "util/Logger.h"
 
@@ -62,22 +61,21 @@ Result<int> AuthService::registerUser(const std::string& username,
         return Result<int>::failure(v.error().code, v.error().message);
     }
 
-    auto& db = Database::instance();
-    if (!db.isConnected())
+    if (!repo_.isConnected())
     {
         return Result<int>::failure(
             err::kDbUnavailable,
             "Database is not connected; cannot register users.");
     }
 
-    if (db.userExists(username))
+    if (repo_.userExists(username))
     {
         return Result<int>::failure(
             err::kUserExists,
             "Username is already taken.");
     }
 
-    if (!db.createUser(username, password, role))
+    if (!repo_.createUser(username, password, role))
     {
         LOG_ERROR("AuthService: createUser failed for '" << username << "'");
         return Result<int>::failure(
@@ -86,7 +84,7 @@ Result<int> AuthService::registerUser(const std::string& username,
     }
 
     // Fetch back the row to return the new id.
-    User created = db.findUserByUsername(username);
+    User created = repo_.findUserByUsername(username);
     if (created.getId() == 0)
     {
         LOG_ERROR("AuthService: created user '" << username
@@ -111,15 +109,14 @@ Result<User> AuthService::authenticate(const std::string& username,
             "Invalid username or password.");
     }
 
-    auto& db = Database::instance();
-    if (!db.isConnected())
+    if (!repo_.isConnected())
     {
         return Result<User>::failure(
             err::kDbUnavailable,
             "Database is not connected; cannot authenticate.");
     }
 
-    User user = db.findUserByUsername(username);
+    User user = repo_.findUserByUsername(username);
     if (user.getId() == 0 || !user.verifyPassword(password))
     {
         return Result<User>::failure(

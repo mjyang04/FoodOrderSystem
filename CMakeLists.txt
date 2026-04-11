@@ -64,6 +64,11 @@ if(NOT MYSQL_FOUND)
 endif()
 
 # Shared library of all source files (excluding main.cpp)
+#
+# Note: AuthService, RestaurantService and DefaultServices intentionally live
+# in fos_lib rather than fos_api so that unit tests (fos_tests) can link the
+# service layer without depending on Drogon/jwt-cpp. JwtService stays in
+# fos_api because it is the single hard dependency on jwt-cpp.
 set(LIB_SOURCES
     src/model/Food.cpp
     src/model/FoodFactory.cpp
@@ -75,6 +80,9 @@ set(LIB_SOURCES
     src/auth/LoginSystem.cpp
     src/auth/HashUtil.cpp
     src/db/Database.cpp
+    src/service/AuthService.cpp
+    src/service/RestaurantService.cpp
+    src/service/DefaultServices.cpp
     src/util/InputHelper.cpp
 )
 
@@ -125,9 +133,7 @@ if(Drogon_FOUND)
         src/api/controllers/AuthController.cc
         src/api/controllers/RestaurantController.cc
         src/api/filters/JwtAuthFilter.cc
-        src/service/AuthService.cpp
         src/service/JwtService.cpp
-        src/service/RestaurantService.cpp
     )
 
     add_executable(fos_api ${API_SOURCES})
@@ -180,10 +186,12 @@ if(BUILD_TESTS)
         tests/test_delivery.cpp
         tests/test_order.cpp
         tests/test_config.cpp
+        tests/test_auth_service.cpp
     )
 
     add_executable(fos_tests ${TEST_SOURCES})
     target_link_libraries(fos_tests PRIVATE fos_lib gtest_main)
+    target_include_directories(fos_tests PRIVATE ${CMAKE_SOURCE_DIR}/tests)
 
     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
         target_compile_options(fos_tests PRIVATE -Wall -Wextra -Wpedantic)

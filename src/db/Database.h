@@ -10,9 +10,14 @@
 #include "../core/Restaurant.h"
 #include "../core/Order.h"
 #include "../model/Food.h"
+#include "IUserRepo.h"
+#include "IRestaurantRepo.h"
 
-// Singleton MySQL database manager
-class Database
+// Singleton MySQL database manager. Implements IUserRepo and IRestaurantRepo
+// so the service layer can be constructed against either the real singleton
+// or an in-memory fake (see tests/fakes/*). See Sprint 2.5 H-DI in
+// plan/sprint_2_5_hardening.md for the rationale.
+class Database : public IUserRepo, public IRestaurantRepo
 {
 public:
     static Database& instance();
@@ -22,26 +27,26 @@ public:
                  const std::string& password, const std::string& dbName,
                  unsigned int port = 3306);
     void disconnect();
-    bool isConnected() const;
+    bool isConnected() const override;
 
     // Schema initialization
     void initializeSchema();
 
     // ---- User operations ----
     bool createUser(const std::string& username, const std::string& password,
-                    UserRole role = UserRole::CUSTOMER);
-    User findUserByUsername(const std::string& username);
-    bool userExists(const std::string& username);
+                    UserRole role = UserRole::CUSTOMER) override;
+    User findUserByUsername(const std::string& username) override;
+    bool userExists(const std::string& username) override;
     std::vector<User> getAllUsers();
 
     // ---- Restaurant operations ----
-    std::vector<Restaurant> getAllRestaurants();
+    std::vector<Restaurant> getAllRestaurants() override;
     int addRestaurant(const std::string& name, const std::string& type);
     bool deleteRestaurant(int id);
 
     // ---- Food operations ----
     std::vector<std::shared_ptr<Food>> getFoodsByRestaurant(int restaurantId,
-                                                            const std::string& cuisineType);
+                                                            const std::string& cuisineType) override;
     int addFood(int restaurantId, const std::string& name, double price,
                 const std::string& description, const std::string& preferences);
     bool deleteFood(int id);

@@ -3,13 +3,14 @@
 #include "api/JsonEnvelope.h"
 #include "core/Restaurant.h"
 #include "model/Food.h"
+#include "service/DefaultServices.h"
 #include "service/ErrorCodes.h"
 #include "service/RestaurantService.h"
 
 using namespace drogon;
 using fos::api::errorResponse;
 using fos::api::successResponse;
-using fos::service::RestaurantService;
+using fos::service::defaultRestaurantService;
 namespace err = fos::service::err;
 
 namespace {
@@ -49,7 +50,7 @@ void RestaurantController::listAll(
 {
     (void)req;
 
-    const auto restaurants = RestaurantService::listAll();
+    const auto restaurants = defaultRestaurantService().listAll();
 
     Json::Value arr(Json::arrayValue);
     for (const auto& r : restaurants)
@@ -70,7 +71,7 @@ void RestaurantController::getMenu(
 {
     (void)req;
 
-    auto result = RestaurantService::getMenu(restaurantId);
+    auto result = defaultRestaurantService().getMenu(restaurantId);
     if (!result)
     {
         HttpStatusCode status = k500InternalServerError;
