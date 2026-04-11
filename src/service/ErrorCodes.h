@@ -26,6 +26,22 @@ inline constexpr const char* kInvalidToken       = "INVALID_TOKEN";
 
 // ---- Domain lookups ----
 inline constexpr const char* kRestaurantNotFound = "RESTAURANT_NOT_FOUND";
+inline constexpr const char* kOrderNotFound      = "ORDER_NOT_FOUND";
+
+// ---- Order creation ----
+// Sprint 3 (plan/sprint_3_orders.md §4). EMPTY_ORDER and INVALID_QUANTITY
+// are split out from kValidationError so clients can localise them
+// separately; MENU_ITEM_MISMATCH is the cross-restaurant guard.
+inline constexpr const char* kEmptyOrder         = "EMPTY_ORDER";
+inline constexpr const char* kInvalidQuantity    = "INVALID_QUANTITY";
+inline constexpr const char* kMenuItemMismatch   = "MENU_ITEM_MISMATCH";
+
+// ---- Authorization ----
+// Reserved for future admin-only endpoints. Sprint 3 currently collapses
+// "not your order" into kOrderNotFound (404) per OWASP guidance, but a
+// dedicated 403 code stays in the vocabulary so Sprint 4+ can distinguish
+// the two cases without re-drafting the protocol.
+inline constexpr const char* kForbidden          = "FORBIDDEN";
 
 // ---- Database ----
 inline constexpr const char* kDbUnavailable      = "DB_UNAVAILABLE";

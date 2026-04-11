@@ -88,6 +88,7 @@ set(LIB_SOURCES
     src/db/Database.cpp
     src/service/AuthService.cpp
     src/service/RestaurantService.cpp
+    src/service/OrderService.cpp
     src/service/DefaultServices.cpp
     src/util/InputHelper.cpp
 )
@@ -192,6 +193,7 @@ if(BUILD_TESTS)
         tests/test_order.cpp
         tests/test_config.cpp
         tests/test_auth_service.cpp
+        tests/test_order_service.cpp
     )
 
     add_executable(fos_tests ${TEST_SOURCES})
