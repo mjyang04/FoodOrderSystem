@@ -3,7 +3,15 @@
 #include "api/JsonEnvelope.h"
 #include "db/Database.h"
 
-using namespace drogon;
+// Sprint 2.5 (L-CONTROLLER-NS): targeted using-declarations instead of
+// `using namespace drogon;` — keeps the global namespace clean and makes
+// the drogon surface this TU actually depends on explicit.
+using drogon::HttpRequestPtr;
+using drogon::HttpResponse;
+using drogon::HttpResponsePtr;
+using drogon::k200OK;
+using drogon::k501NotImplemented;
+using drogon::k503ServiceUnavailable;
 using fos::api::makeEnvelope;
 
 void HealthController::health(const HttpRequestPtr& req,

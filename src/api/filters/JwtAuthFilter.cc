@@ -8,7 +8,13 @@
 #include "service/ErrorCodes.h"
 #include "service/JwtService.h"
 
-using namespace drogon;
+// Sprint 2.5 (L-CONTROLLER-NS): targeted using-declarations instead of
+// `using namespace drogon;`. FilterCallback / FilterChainCallback are
+// the two type aliases the doFilter signature actually depends on.
+using drogon::FilterCallback;
+using drogon::FilterChainCallback;
+using drogon::HttpRequestPtr;
+using drogon::k401Unauthorized;
 using fos::api::errorResponse;
 using fos::service::JwtService;
 namespace err = fos::service::err;

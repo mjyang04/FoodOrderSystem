@@ -7,7 +7,11 @@
 #include "service/DefaultServices.h"
 #include "service/JwtService.h"
 
-using namespace drogon;
+// Sprint 2.5 (L-CONTROLLER-NS): drop `using namespace drogon;` in favor
+// of targeted declarations so the TU's drogon surface is explicit.
+using drogon::HttpRequestPtr;
+using drogon::HttpResponsePtr;
+using drogon::k201Created;
 using fos::api::errorResponse;
 using fos::api::requireJsonObject;
 using fos::api::requireStringField;

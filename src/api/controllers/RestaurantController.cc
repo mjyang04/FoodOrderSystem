@@ -6,7 +6,11 @@
 #include "service/DefaultServices.h"
 #include "service/RestaurantService.h"
 
-using namespace drogon;
+// Sprint 2.5 (L-CONTROLLER-NS): targeted declarations instead of
+// `using namespace drogon;`. This TU only needs the two request/response
+// pointer aliases at the signature level.
+using drogon::HttpRequestPtr;
+using drogon::HttpResponsePtr;
 using fos::api::errorResponse;
 using fos::api::statusForError;
 using fos::api::successResponse;
