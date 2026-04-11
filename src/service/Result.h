@@ -12,7 +12,16 @@
 //      specialisation is provided for operations that return no data.
 //
 // Inspired by std::expected (C++23), but C++17-compatible.
+//
+// Sprint 2.5 (L-RESULT-ERGONOMICS, L-RESULT-ASSERT) added:
+//   - from_error(const ErrorInfo&) to propagate an error across Result<T>
+//     instances without re-naming the code/message fields.
+//   - [[nodiscard]] on ok() / operator bool() so callers cannot accidentally
+//     drop a failure check.
+//   - assert(!ok_) in error() to catch buggy callers that try to read the
+//     error field on a successful Result.
 
+#include <cassert>
 #include <optional>
 #include <string>
 #include <utility>
@@ -45,13 +54,29 @@ public:
         return r;
     }
 
-    bool ok() const { return ok_; }
-    explicit operator bool() const { return ok_; }
+    // Propagate an existing error into a Result<T> of a different payload
+    // type. Avoids the "failure(other.error().code, other.error().message)"
+    // copy-and-paste pattern that showed up in AuthService::registerUser.
+    static Result<T> from_error(const ErrorInfo& e)
+    {
+        return failure(e.code, e.message);
+    }
+
+    [[nodiscard]] bool ok() const { return ok_; }
+    [[nodiscard]] explicit operator bool() const { return ok_; }
 
     const T& value() const { return *value_; }
     T& value() { return *value_; }
 
-    const ErrorInfo& error() const { return error_; }
+    const ErrorInfo& error() const
+    {
+        // Reading error() on a successful Result is a caller bug — it would
+        // silently return a default-constructed ErrorInfo and hide the real
+        // error protocol. Debug builds trip this assert; release builds fall
+        // through to the same empty ErrorInfo for backward compatibility.
+        assert(!ok_ && "Result::error() called on a successful Result");
+        return error_;
+    }
 
 private:
     Result() = default;
@@ -81,10 +106,19 @@ public:
         return r;
     }
 
-    bool ok() const { return ok_; }
-    explicit operator bool() const { return ok_; }
+    static Result<void> from_error(const ErrorInfo& e)
+    {
+        return failure(e.code, e.message);
+    }
 
-    const ErrorInfo& error() const { return error_; }
+    [[nodiscard]] bool ok() const { return ok_; }
+    [[nodiscard]] explicit operator bool() const { return ok_; }
+
+    const ErrorInfo& error() const
+    {
+        assert(!ok_ && "Result::error() called on a successful Result");
+        return error_;
+    }
 
 private:
     Result() = default;

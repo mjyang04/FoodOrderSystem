@@ -58,11 +58,11 @@ Result<int> AuthService::registerUser(const std::string& username,
 {
     if (auto v = validateUsername(username); !v)
     {
-        return Result<int>::failure(v.error().code, v.error().message);
+        return Result<int>::from_error(v.error());
     }
     if (auto v = validatePassword(password); !v)
     {
-        return Result<int>::failure(v.error().code, v.error().message);
+        return Result<int>::from_error(v.error());
     }
 
     if (!repo_.isConnected())
