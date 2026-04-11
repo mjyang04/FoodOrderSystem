@@ -172,6 +172,34 @@ void Database::initializeSchema()
     {
         executeQuery(sql);
     }
+
+    // ---- Sprint 3 additive migrations ----
+    // MySQL's ALTER TABLE ... ADD COLUMN IF NOT EXISTS is 8.0.23+; for older
+    // servers we probe SHOW COLUMNS first so repeated startups don't spam
+    // the error log with "duplicate column" failures. Columns are NULL-able
+    // so the legacy CLI createOrder(const Order&) path keeps working without
+    // any code changes.
+    auto ensureColumn = [this](const std::string& table,
+                               const std::string& column,
+                               const std::string& definition)
+    {
+        const std::string probe =
+            "SHOW COLUMNS FROM " + table + " LIKE '" + column + "'";
+        MYSQL_RES* res = executeSelect(probe);
+        bool exists = (res != nullptr && mysql_num_rows(res) > 0);
+        if (res) mysql_free_result(res);
+        if (exists) return;
+
+        const std::string alter =
+            "ALTER TABLE " + table + " ADD COLUMN " + column + " " + definition;
+        if (executeQuery(alter))
+        {
+            LOG_INFO("Schema migrated: added " + table + "." + column);
+        }
+    };
+    ensureColumn("orders", "restaurant_id", "INT NULL");
+    ensureColumn("order_items", "food_id", "INT NULL");
+
     LOG_DEBUG("Schema initialized");
 }
 
@@ -952,4 +980,249 @@ std::vector<std::shared_ptr<Food>> Database::searchFoodByPriceRange(double minPr
     }
     mysql_free_result(res);
     return results;
+}
+
+// ============================================================
+// Sprint 3 — IOrderRepo (DTO / HTTP path)
+// ============================================================
+// These four methods back the Drogon order controllers via OrderService.
+// They live alongside the legacy createOrder(const Order&) / addOrderItems
+// helpers above, which are still the CLI's path and deliberately untouched.
+// The DTO path always populates orders.restaurant_id and order_items.food_id
+// (added by ensureColumn migration in initializeSchema); the legacy path
+// leaves those nullable columns as NULL.
+
+std::optional<fos::service::OrderDto> Database::findOrderById(int orderId)
+{
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    if (!conn_) return std::nullopt;
+
+    std::ostringstream headSql;
+    headSql << "SELECT id, user_id, COALESCE(restaurant_id, 0), "
+            << "COALESCE(restaurant_name, ''), status, total_price, "
+            << "COALESCE(delivery_type, ''), "
+            << "DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s') "
+            << "FROM orders WHERE id=" << orderId;
+    MYSQL_RES* res = executeSelect(headSql.str());
+    if (!res) return std::nullopt;
+
+    MYSQL_ROW row = mysql_fetch_row(res);
+    if (!row) { mysql_free_result(res); return std::nullopt; }
+
+    fos::service::OrderDto dto;
+    dto.orderId        = row[0] ? std::stoi(row[0]) : 0;
+    dto.customerId     = row[1] ? std::stoi(row[1]) : 0;
+    dto.restaurantId   = row[2] ? std::stoi(row[2]) : 0;
+    dto.restaurantName = row[3] ? row[3] : "";
+    dto.status         = row[4] ? row[4] : "";
+    dto.totalPrice     = row[5] ? std::stod(row[5]) : 0.0;
+    dto.deliveryOption = row[6] ? row[6] : "";
+    dto.createdAt      = row[7] ? row[7] : "";
+    mysql_free_result(res);
+
+    std::ostringstream itemSql;
+    itemSql << "SELECT COALESCE(food_id, 0), food_name, food_price, quantity "
+            << "FROM order_items WHERE order_id=" << orderId
+            << " ORDER BY id";
+    MYSQL_RES* ires = executeSelect(itemSql.str());
+    if (ires)
+    {
+        MYSQL_ROW irow;
+        while ((irow = mysql_fetch_row(ires)))
+        {
+            fos::service::OrderItemDto item;
+            item.foodId    = irow[0] ? std::stoi(irow[0]) : 0;
+            item.foodName  = irow[1] ? irow[1] : "";
+            item.unitPrice = irow[2] ? std::stod(irow[2]) : 0.0;
+            item.quantity  = irow[3] ? std::stoi(irow[3]) : 0;
+            dto.items.push_back(std::move(item));
+        }
+        mysql_free_result(ires);
+    }
+    return dto;
+}
+
+std::optional<int> Database::createOrder(const fos::service::OrderDto& order)
+{
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    if (!conn_) return std::nullopt;
+
+    // Wrap both inserts in a single transaction so a mid-write failure
+    // cannot leave behind an order header with no line items.
+    if (!executeQuery("START TRANSACTION"))
+    {
+        return std::nullopt;
+    }
+
+    // --- INSERT INTO orders ---
+    const std::string orderSql =
+        "INSERT INTO orders (user_id, restaurant_id, restaurant_name, status, "
+        "total_price, delivery_type) VALUES (?, ?, ?, ?, ?, ?)";
+    MYSQL_STMT* stmt = prepareStatement(orderSql);
+    if (!stmt) { executeQuery("ROLLBACK"); return std::nullopt; }
+
+    int userId       = order.customerId;
+    int restaurantId = order.restaurantId;
+    std::string restName = order.restaurantName;
+    std::string status   = order.status.empty() ? std::string("Pending") : order.status;
+    double totalPrice    = order.totalPrice;
+    std::string delivery = order.deliveryOption;
+
+    unsigned long restNameLen = static_cast<unsigned long>(restName.size());
+    unsigned long statusLen   = static_cast<unsigned long>(status.size());
+    unsigned long deliveryLen = static_cast<unsigned long>(delivery.size());
+
+    MYSQL_BIND bind[6];
+    std::memset(bind, 0, sizeof(bind));
+    bind[0].buffer_type = MYSQL_TYPE_LONG;
+    bind[0].buffer      = &userId;
+    bind[1].buffer_type = MYSQL_TYPE_LONG;
+    bind[1].buffer      = &restaurantId;
+    bind[2].buffer_type   = MYSQL_TYPE_STRING;
+    bind[2].buffer        = const_cast<char*>(restName.c_str());
+    bind[2].buffer_length = restNameLen;
+    bind[2].length        = &restNameLen;
+    bind[3].buffer_type   = MYSQL_TYPE_STRING;
+    bind[3].buffer        = const_cast<char*>(status.c_str());
+    bind[3].buffer_length = statusLen;
+    bind[3].length        = &statusLen;
+    bind[4].buffer_type = MYSQL_TYPE_DOUBLE;
+    bind[4].buffer      = &totalPrice;
+    bind[5].buffer_type   = MYSQL_TYPE_STRING;
+    bind[5].buffer        = const_cast<char*>(delivery.c_str());
+    bind[5].buffer_length = deliveryLen;
+    bind[5].length        = &deliveryLen;
+
+    if (mysql_stmt_bind_param(stmt, bind) != 0)
+    {
+        LOG_ERROR(std::string("DTO createOrder bind_param failed: ") + mysql_stmt_error(stmt));
+        mysql_stmt_close(stmt);
+        executeQuery("ROLLBACK");
+        return std::nullopt;
+    }
+    if (mysql_stmt_execute(stmt) != 0)
+    {
+        LOG_ERROR(std::string("DTO createOrder (orders) failed: ") + mysql_stmt_error(stmt));
+        mysql_stmt_close(stmt);
+        executeQuery("ROLLBACK");
+        return std::nullopt;
+    }
+    int newOrderId = static_cast<int>(mysql_stmt_insert_id(stmt));
+    mysql_stmt_close(stmt);
+
+    // --- INSERT order_items (one statement per line item) ---
+    const std::string itemSql =
+        "INSERT INTO order_items (order_id, food_id, food_name, food_price, quantity) "
+        "VALUES (?, ?, ?, ?, ?)";
+    for (const auto& item : order.items)
+    {
+        MYSQL_STMT* istmt = prepareStatement(itemSql);
+        if (!istmt) { executeQuery("ROLLBACK"); return std::nullopt; }
+
+        int ioid = newOrderId;
+        int ifid = item.foodId;
+        std::string iname = item.foodName;
+        double iprice = item.unitPrice;
+        int iqty = item.quantity;
+        unsigned long inameLen = static_cast<unsigned long>(iname.size());
+
+        MYSQL_BIND ib[5];
+        std::memset(ib, 0, sizeof(ib));
+        ib[0].buffer_type = MYSQL_TYPE_LONG;
+        ib[0].buffer      = &ioid;
+        ib[1].buffer_type = MYSQL_TYPE_LONG;
+        ib[1].buffer      = &ifid;
+        ib[2].buffer_type   = MYSQL_TYPE_STRING;
+        ib[2].buffer        = const_cast<char*>(iname.c_str());
+        ib[2].buffer_length = inameLen;
+        ib[2].length        = &inameLen;
+        ib[3].buffer_type = MYSQL_TYPE_DOUBLE;
+        ib[3].buffer      = &iprice;
+        ib[4].buffer_type = MYSQL_TYPE_LONG;
+        ib[4].buffer      = &iqty;
+
+        if (mysql_stmt_bind_param(istmt, ib) != 0)
+        {
+            LOG_ERROR(std::string("DTO createOrder item bind_param failed: ") + mysql_stmt_error(istmt));
+            mysql_stmt_close(istmt);
+            executeQuery("ROLLBACK");
+            return std::nullopt;
+        }
+        if (mysql_stmt_execute(istmt) != 0)
+        {
+            LOG_ERROR(std::string("DTO createOrder (order_items) failed: ") + mysql_stmt_error(istmt));
+            mysql_stmt_close(istmt);
+            executeQuery("ROLLBACK");
+            return std::nullopt;
+        }
+        mysql_stmt_close(istmt);
+    }
+
+    if (!executeQuery("COMMIT"))
+    {
+        executeQuery("ROLLBACK");
+        return std::nullopt;
+    }
+    LOG_INFO("DTO order #" + std::to_string(newOrderId) +
+             " created for user #" + std::to_string(userId));
+    return newOrderId;
+}
+
+std::vector<fos::service::OrderDto> Database::listOrdersByCustomer(int customerId)
+{
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    std::vector<fos::service::OrderDto> out;
+    if (!conn_) return out;
+
+    // Two-phase fetch: collect ids under the lock, then rehydrate each
+    // full OrderDto via findOrderById. N+1 is known and acceptable at
+    // Sprint 3 scale — revisit with a JOIN if list sizes ever grow.
+    std::ostringstream sql;
+    sql << "SELECT id FROM orders WHERE user_id=" << customerId
+        << " ORDER BY created_at DESC";
+    MYSQL_RES* res = executeSelect(sql.str());
+    if (!res) return out;
+
+    std::vector<int> ids;
+    MYSQL_ROW row;
+    while ((row = mysql_fetch_row(res)))
+    {
+        if (row[0]) ids.push_back(std::stoi(row[0]));
+    }
+    mysql_free_result(res);
+
+    out.reserve(ids.size());
+    for (int id : ids)
+    {
+        auto dto = findOrderById(id);
+        if (dto.has_value()) out.push_back(std::move(*dto));
+    }
+    return out;
+}
+
+std::vector<fos::service::OrderDto> Database::listAllOrders()
+{
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    std::vector<fos::service::OrderDto> out;
+    if (!conn_) return out;
+
+    MYSQL_RES* res = executeSelect(
+        "SELECT id FROM orders ORDER BY created_at DESC");
+    if (!res) return out;
+
+    std::vector<int> ids;
+    MYSQL_ROW row;
+    while ((row = mysql_fetch_row(res)))
+    {
+        if (row[0]) ids.push_back(std::stoi(row[0]));
+    }
+    mysql_free_result(res);
+
+    out.reserve(ids.size());
+    for (int id : ids)
+    {
+        auto dto = findOrderById(id);
+        if (dto.has_value()) out.push_back(std::move(*dto));
+    }
+    return out;
 }

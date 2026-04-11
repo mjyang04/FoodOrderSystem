@@ -16,8 +16,10 @@ namespace fos::service {
 
 class AuthService;
 class RestaurantService;
+class OrderService;
 
 AuthService& defaultAuthService();
 RestaurantService& defaultRestaurantService();
+OrderService& defaultOrderService();
 
 } // namespace fos::service

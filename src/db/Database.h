@@ -13,12 +13,14 @@
 #include "../model/Food.h"
 #include "IUserRepo.h"
 #include "IRestaurantRepo.h"
+#include "IOrderRepo.h"
 
-// Singleton MySQL database manager. Implements IUserRepo and IRestaurantRepo
-// so the service layer can be constructed against either the real singleton
-// or an in-memory fake (see tests/fakes/*). See Sprint 2.5 H-DI in
-// plan/sprint_2_5_hardening.md for the rationale.
-class Database : public IUserRepo, public IRestaurantRepo
+// Singleton MySQL database manager. Implements IUserRepo, IRestaurantRepo
+// and IOrderRepo so the service layer can be constructed against either the
+// real singleton or an in-memory fake (see tests/fakes/*). See Sprint 2.5
+// H-DI and Sprint 3 in plan/sprint_2_5_hardening.md / plan/sprint_3_orders.md
+// for the rationale.
+class Database : public IUserRepo, public IRestaurantRepo, public IOrderRepo
 {
 public:
     static Database& instance();
@@ -54,7 +56,10 @@ public:
     bool deleteFood(int id);
     bool updateFoodPrice(int id, double newPrice);
 
-    // ---- Order operations ----
+    // ---- Order operations (legacy CLI path) ----
+    // Unhide the IOrderRepo::createOrder overload so the legacy overload
+    // below doesn't trigger -Woverloaded-virtual.
+    using IOrderRepo::createOrder;
     int createOrder(const Order& order);
     void addOrderItems(int orderId, const std::vector<OrderItem>& items);
     std::vector<Order> getOrdersByUser(int userId, const std::vector<Restaurant>& restaurants);
@@ -62,6 +67,16 @@ public:
     bool updateOrderStatus(int orderId, OrderStatus status);
     bool deleteOrder(int orderId);
     bool rateOrder(int orderId, double rating);
+
+    // ---- Order operations (Sprint 3 DTO / IOrderRepo path) ----
+    // These four methods satisfy IOrderRepo and power the HTTP API. They
+    // live side-by-side with the legacy createOrder(const Order&) above —
+    // the CLI still wants the rich Order model, but the HTTP path only
+    // needs the minimal OrderDto surface.
+    std::optional<int> createOrder(const fos::service::OrderDto& order) override;
+    std::optional<fos::service::OrderDto> findOrderById(int orderId) override;
+    std::vector<fos::service::OrderDto> listOrdersByCustomer(int customerId) override;
+    std::vector<fos::service::OrderDto> listAllOrders() override;
 
     // ---- Rider operations ----
     struct Rider { int id; std::string name; std::string phone; };
