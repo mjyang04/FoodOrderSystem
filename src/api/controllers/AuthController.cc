@@ -4,15 +4,14 @@
 #include "auth/User.h"
 #include "service/AuthService.h"
 #include "service/DefaultServices.h"
-#include "service/ErrorCodes.h"
 #include "service/JwtService.h"
 
 using namespace drogon;
 using fos::api::errorResponse;
+using fos::api::statusForError;
 using fos::api::successResponse;
 using fos::service::defaultAuthService;
 using fos::service::JwtService;
-namespace err = fos::service::err;
 
 namespace {
 
@@ -23,21 +22,6 @@ Json::Value userToJson(const User& user)
     j["username"] = user.getUsername();
     j["role"] = user.isAdmin() ? "ADMIN" : "CUSTOMER";
     return j;
-}
-
-// Map service-layer error codes to HTTP status codes.
-HttpStatusCode statusForError(const std::string& code)
-{
-    if (code == err::kValidationError)    return k400BadRequest;
-    if (code == err::kInvalidCredentials) return k401Unauthorized;
-    if (code == err::kUserExists)         return k409Conflict;
-    if (code == err::kRestaurantNotFound) return k404NotFound;
-    if (code == err::kMissingToken)       return k401Unauthorized;
-    if (code == err::kInvalidToken)       return k401Unauthorized;
-    if (code == err::kDbUnavailable)      return k503ServiceUnavailable;
-    if (code == err::kDbError)            return k500InternalServerError;
-    if (code == err::kJwtNotConfigured)   return k500InternalServerError;
-    return k400BadRequest;
 }
 
 // Extract and minimally validate a {username, password} JSON body.

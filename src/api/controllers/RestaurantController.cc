@@ -4,14 +4,13 @@
 #include "core/Restaurant.h"
 #include "model/Food.h"
 #include "service/DefaultServices.h"
-#include "service/ErrorCodes.h"
 #include "service/RestaurantService.h"
 
 using namespace drogon;
 using fos::api::errorResponse;
+using fos::api::statusForError;
 using fos::api::successResponse;
 using fos::service::defaultRestaurantService;
-namespace err = fos::service::err;
 
 namespace {
 
@@ -74,17 +73,10 @@ void RestaurantController::getMenu(
     auto result = defaultRestaurantService().getMenu(restaurantId);
     if (!result)
     {
-        HttpStatusCode status = k500InternalServerError;
-        if (result.error().code == err::kRestaurantNotFound)
-        {
-            status = k404NotFound;
-        }
-        else if (result.error().code == err::kDbUnavailable)
-        {
-            status = k503ServiceUnavailable;
-        }
         callback(errorResponse(
-            status, result.error().code, result.error().message));
+            statusForError(result.error().code),
+            result.error().code,
+            result.error().message));
         return;
     }
 
