@@ -106,6 +106,19 @@ int main()
     {
         LOG_INFO("JWT signing configured (HS256, ttl=" << jwtTtlHours << "h)");
     }
+    // Sprint 2.5 (L-TTL-WARN): one week is the maximum reasonable operational
+    // TTL for a course-project API. Anything longer is almost certainly a
+    // misconfiguration (typo in hours vs days) and should at least trip a
+    // startup warning. We do NOT refuse to start — deployments that really
+    // want a long TTL can ignore the warning.
+    constexpr int kJwtTtlWarnHours = 168;
+    if (jwtTtlHours > kJwtTtlWarnHours)
+    {
+        LOG_WARN("JWT_TTL_HOURS=" << jwtTtlHours
+                 << " exceeds the " << kJwtTtlWarnHours
+                 << "h (1 week) operational cap. Double-check that the unit "
+                    "is hours and not days/minutes.");
+    }
     fos::service::JwtService::configure(jwtSecret, jwtTtlHours);
 
     // ---- Configure Drogon listener ----

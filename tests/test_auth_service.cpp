@@ -19,7 +19,7 @@ TEST(AuthServiceTest, RegisterUserHappyPath)
     FakeUserRepo repo;
     AuthService svc(repo);
 
-    auto result = svc.registerUser("alice", "secret1", UserRole::CUSTOMER);
+    auto result = svc.registerUser("alice", "secret12", UserRole::CUSTOMER);
 
     ASSERT_TRUE(result.ok()) << "expected success, got " << result.error().code
                              << ": " << result.error().message;
@@ -48,7 +48,7 @@ TEST(AuthServiceTest, RegisterOnDisconnectedRepoReturnsDbUnavailable)
     repo.setConnected(false);
     AuthService svc(repo);
 
-    auto result = svc.registerUser("carol", "secret1");
+    auto result = svc.registerUser("carol", "secret12");
 
     ASSERT_FALSE(result.ok());
     EXPECT_EQ(result.error().code, err::kDbUnavailable);

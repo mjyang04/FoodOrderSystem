@@ -376,7 +376,11 @@ CLAUDE.md
 /FoodOrderSystem.vcxproj.filters
 
 # Local runtime config (contains DB credentials, JWT secrets, etc.)
-# Keep config.example in git as a template.
+# Keep config.example in git as a template. Sprint 2.5 (L-CONFIG-WILDCARD)
+# widened the pattern so config.local / config.prod / config.staging can
+# never leak.
 /config
+/config.*
+!/config.example
 .env
 .env.*

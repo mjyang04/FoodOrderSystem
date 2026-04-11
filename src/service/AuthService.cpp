@@ -11,7 +11,11 @@ namespace {
 
 constexpr std::size_t kMinUsernameLen = 3;
 constexpr std::size_t kMaxUsernameLen = 32;
-constexpr std::size_t kMinPasswordLen = 6;
+// Sprint 2.5 (L-PASSWORD-STRENGTH): raised from 6 to 8 per NIST SP 800-63B.
+// Existing accounts are unaffected — the check is only applied on the
+// register/authenticate paths, and authenticate already routes validation
+// failures through INVALID_CREDENTIALS so old short passwords still log in.
+constexpr std::size_t kMinPasswordLen = 8;
 constexpr std::size_t kMaxPasswordLen = 128;
 
 } // namespace
@@ -43,7 +47,7 @@ Result<void> AuthService::validatePassword(const std::string& password)
     {
         return Result<void>::failure(
             err::kValidationError,
-            "Password must be 6-128 characters long.");
+            "Password must be 8-128 characters long.");
     }
     return Result<void>::success();
 }
