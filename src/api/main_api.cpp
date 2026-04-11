@@ -18,6 +18,7 @@
 #include <string>
 
 #include "db/Database.h"
+#include "service/JwtService.h"
 #include "util/Config.h"
 #include "util/Logger.h"
 
@@ -84,6 +85,25 @@ int main()
         LOG_WARN("Starting in DEGRADED mode: database is unreachable. "
                  "/health will return 503 until the database recovers.");
     }
+
+    // ---- Configure JWT signing ----
+    //
+    // JWT_SECRET is required for /api/auth/login to issue tokens and for
+    // JwtAuthFilter to verify them. We do NOT exit if it's missing — the
+    // public read paths (/health, /api/restaurants) still work, and login
+    // will return JWT_NOT_CONFIGURED with a clear error message.
+    const std::string jwtSecret = config.getString("JWT_SECRET", "");
+    const int jwtTtlHours = config.getInt("JWT_TTL_HOURS", 24);
+    if (jwtSecret.empty())
+    {
+        LOG_WARN("JWT_SECRET is empty — /api/auth/login will fail until "
+                 "you set JWT_SECRET in config or environment.");
+    }
+    else
+    {
+        LOG_INFO("JWT signing configured (HS256, ttl=" << jwtTtlHours << "h)");
+    }
+    fos::service::JwtService::configure(jwtSecret, jwtTtlHours);
 
     // ---- Configure Drogon listener ----
     const std::string host   = config.getString("HTTP_HOST", "0.0.0.0");

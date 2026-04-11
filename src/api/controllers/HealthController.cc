@@ -1,23 +1,10 @@
 #include "HealthController.h"
 
+#include "api/JsonEnvelope.h"
 #include "db/Database.h"
-#include "util/Logger.h"
 
 using namespace drogon;
-
-namespace {
-
-// Build the unified JSON envelope used across the API.
-Json::Value makeEnvelope(bool success, const Json::Value& data, const Json::Value& error)
-{
-    Json::Value envelope;
-    envelope["success"] = success;
-    envelope["data"] = data;
-    envelope["error"] = error;
-    return envelope;
-}
-
-} // namespace
+using fos::api::makeEnvelope;
 
 void HealthController::health(const HttpRequestPtr& req,
                                std::function<void(const HttpResponsePtr&)>&& callback)

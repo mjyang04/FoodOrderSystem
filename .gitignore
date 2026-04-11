@@ -374,3 +374,9 @@ CLAUDE.md
 /FoodOrderSystem.sln
 /FoodOrderSystem.vcxproj
 /FoodOrderSystem.vcxproj.filters
+
+# Local runtime config (contains DB credentials, JWT secrets, etc.)
+# Keep config.example in git as a template.
+/config
+.env
+.env.*

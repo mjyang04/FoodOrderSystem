@@ -103,13 +103,40 @@ endif()
 find_package(Drogon CONFIG QUIET)
 
 if(Drogon_FOUND)
+    # jwt-cpp is header-only and not in Homebrew on macOS, so we pull it via
+    # FetchContent. It is linked ONLY into fos_api, never into fos_lib or
+    # fos_cli — the CLI does not need JWT, and keeping the library free of
+    # jwt-cpp avoids propagating the dependency to the unit test target.
+    include(FetchContent)
+    FetchContent_Declare(
+        jwt-cpp
+        GIT_REPOSITORY https://github.com/Thalhammer/jwt-cpp.git
+        GIT_TAG v0.7.0
+    )
+    # Skip jwt-cpp's own tests/examples to speed up configure.
+    set(JWT_BUILD_EXAMPLES OFF CACHE INTERNAL "")
+    set(JWT_BUILD_TESTS OFF CACHE INTERNAL "")
+    set(JWT_EXTERNAL_PICOJSON OFF CACHE INTERNAL "")
+    FetchContent_MakeAvailable(jwt-cpp)
+
     set(API_SOURCES
         src/api/main_api.cpp
         src/api/controllers/HealthController.cc
+        src/api/controllers/AuthController.cc
+        src/api/controllers/RestaurantController.cc
+        src/api/filters/JwtAuthFilter.cc
+        src/service/AuthService.cpp
+        src/service/JwtService.cpp
+        src/service/RestaurantService.cpp
     )
 
     add_executable(fos_api ${API_SOURCES})
-    target_link_libraries(fos_api PRIVATE fos_lib Drogon::Drogon)
+    target_link_libraries(fos_api
+        PRIVATE
+            fos_lib
+            Drogon::Drogon
+            jwt-cpp::jwt-cpp
+    )
     target_include_directories(fos_api PRIVATE ${CMAKE_SOURCE_DIR}/src)
 
     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
@@ -117,6 +144,7 @@ if(Drogon_FOUND)
     endif()
 
     message(STATUS "Drogon found: HTTP API target 'fos_api' enabled")
+    message(STATUS "jwt-cpp fetched via FetchContent (v0.7.0, header-only)")
     install(TARGETS fos_api DESTINATION bin)
 else()
     message(WARNING
