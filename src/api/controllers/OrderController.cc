@@ -47,6 +47,7 @@ Json::Value orderToJson(const OrderDto& order)
     j["total_price"] = order.totalPrice;
     j["delivery_option"] = order.deliveryOption;
     j["status"] = order.status;
+    if (order.rating > 0.0) j["rating"] = order.rating;
     j["created_at"] = order.createdAt;
 
     Json::Value items(Json::arrayValue);
@@ -188,6 +189,69 @@ void OrderController::getOrder(
 
     auto result =
         defaultOrderService().getOrder(orderId, ctx.userId, ctx.isAdmin());
+    if (!result)
+    {
+        callback(errorResponse(
+            statusForError(result.error().code),
+            result.error().code,
+            result.error().message));
+        return;
+    }
+
+    callback(successResponse(orderToJson(result.value())));
+}
+
+void OrderController::updateStatus(
+    const HttpRequestPtr& req,
+    std::function<void(const HttpResponsePtr&)>&& callback,
+    int orderId)
+{
+    auto bodyPtr = requireJsonObject(req, callback);
+    if (!bodyPtr) return;
+
+    std::string newStatus;
+    if (!requireStringField(*bodyPtr, "status", newStatus, callback))
+        return;
+
+    const auto ctx = readAuthContext(req);
+
+    auto result = defaultOrderService().updateStatus(
+        orderId, newStatus, ctx.userId, ctx.isAdmin());
+    if (!result)
+    {
+        callback(errorResponse(
+            statusForError(result.error().code),
+            result.error().code,
+            result.error().message));
+        return;
+    }
+
+    callback(successResponse(orderToJson(result.value())));
+}
+
+void OrderController::rateOrder(
+    const HttpRequestPtr& req,
+    std::function<void(const HttpResponsePtr&)>&& callback,
+    int orderId)
+{
+    auto bodyPtr = requireJsonObject(req, callback);
+    if (!bodyPtr) return;
+    const Json::Value& body = *bodyPtr;
+
+    if (!body.isMember("rating") || !body["rating"].isDouble())
+    {
+        callback(errorResponse(
+            drogon::k400BadRequest,
+            "VALIDATION_ERROR",
+            "Field 'rating' is required and must be a number."));
+        return;
+    }
+    double rating = body["rating"].asDouble();
+
+    const auto ctx = readAuthContext(req);
+
+    auto result = defaultOrderService().rateOrder(
+        orderId, rating, ctx.userId, ctx.isAdmin());
     if (!result)
     {
         callback(errorResponse(

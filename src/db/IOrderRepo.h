@@ -44,4 +44,10 @@ public:
     // Admin path: return every order in the system, ordered newest-first,
     // capped. The service decides who may call this.
     virtual std::vector<fos::service::OrderDto> listAllOrders() = 0;
+
+    // Sprint 5: update order status. Returns true on success.
+    virtual bool updateOrderStatus(int orderId, const std::string& newStatus) = 0;
+
+    // Sprint 5: set order rating. Returns true on success.
+    virtual bool updateOrderRating(int orderId, double rating) = 0;
 };

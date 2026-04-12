@@ -59,6 +59,14 @@ public:
     // admins see everything.
     Result<std::vector<OrderDto>> listOrders(int requestingUserId, bool isAdmin);
 
+    // Sprint 5: transition order status. Admin-only. Returns updated OrderDto.
+    Result<OrderDto> updateStatus(int orderId, const std::string& newStatus,
+                                  int requestingUserId, bool isAdmin);
+
+    // Sprint 5: rate a delivered order. Customer-only (owner).
+    Result<OrderDto> rateOrder(int orderId, double rating,
+                               int requestingUserId, bool isAdmin);
+
 private:
     IOrderRepo& orderRepo_;
     IRestaurantRepo& restaurantRepo_;

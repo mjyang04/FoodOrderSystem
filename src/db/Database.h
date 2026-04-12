@@ -78,6 +78,10 @@ public:
     std::vector<fos::service::OrderDto> listOrdersByCustomer(int customerId) override;
     std::vector<fos::service::OrderDto> listAllOrders() override;
 
+    // Sprint 5: IOrderRepo overrides for string-based status + rating.
+    bool updateOrderStatus(int orderId, const std::string& newStatus) override;
+    bool updateOrderRating(int orderId, double rating) override;
+
     // ---- Rider operations ----
     struct Rider { int id; std::string name; std::string phone; };
     std::vector<Rider> getAllRiders();

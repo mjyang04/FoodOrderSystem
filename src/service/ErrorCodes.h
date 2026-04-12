@@ -56,4 +56,13 @@ inline constexpr const char* kAiBadRequest       = "AI_BAD_REQUEST";
 inline constexpr const char* kAiUpstreamError    = "AI_UPSTREAM_ERROR";
 inline constexpr const char* kAiLlmRefused       = "AI_LLM_REFUSED";
 
+// ---- Order status transitions (Sprint 5) ----
+inline constexpr const char* kInvalidStatusTransition = "INVALID_STATUS_TRANSITION";
+inline constexpr const char* kOrderAlreadyRated       = "ORDER_ALREADY_RATED";
+
+// ---- AI / Chat (Sprint 5) ----
+inline constexpr const char* kAiSessionNotFound  = "AI_SESSION_NOT_FOUND";
+inline constexpr const char* kAiToolError        = "AI_TOOL_ERROR";
+inline constexpr const char* kAiMaxIterations    = "AI_MAX_ITERATIONS";
+
 } // namespace fos::service::err

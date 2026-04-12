@@ -93,6 +93,12 @@ inline drogon::HttpStatusCode statusForError(const std::string& code)
     if (code == err::kAiBadRequest)       return drogon::k400BadRequest;
     if (code == err::kAiUpstreamError)    return drogon::k502BadGateway;
     if (code == err::kAiLlmRefused)       return drogon::k422UnprocessableEntity;
+    // Sprint 5: order status + chat codes.
+    if (code == err::kInvalidStatusTransition) return drogon::k400BadRequest;
+    if (code == err::kOrderAlreadyRated)       return drogon::k409Conflict;
+    if (code == err::kAiSessionNotFound)       return drogon::k404NotFound;
+    if (code == err::kAiToolError)             return drogon::k502BadGateway;
+    if (code == err::kAiMaxIterations)         return drogon::k502BadGateway;
     return drogon::k400BadRequest;
 }
 

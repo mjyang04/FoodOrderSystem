@@ -1226,3 +1226,15 @@ std::vector<fos::service::OrderDto> Database::listAllOrders()
     }
     return out;
 }
+
+bool Database::updateOrderStatus(int orderId, const std::string& newStatus)
+{
+    // Delegate to the legacy enum-based method after converting.
+    OrderStatus enumStatus = stringToOrderStatus(newStatus);
+    return updateOrderStatus(orderId, enumStatus);
+}
+
+bool Database::updateOrderRating(int orderId, double rating)
+{
+    return rateOrder(orderId, rating);
+}

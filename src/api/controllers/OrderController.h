@@ -27,6 +27,10 @@ public:
                   "/api/orders", drogon::Get,  "JwtAuthFilter");
     ADD_METHOD_TO(OrderController::getOrder,
                   "/api/orders/{1}", drogon::Get, "JwtAuthFilter");
+    ADD_METHOD_TO(OrderController::updateStatus,
+                  "/api/orders/{1}/status", drogon::Patch, "JwtAuthFilter");
+    ADD_METHOD_TO(OrderController::rateOrder,
+                  "/api/orders/{1}/rating", drogon::Patch, "JwtAuthFilter");
     METHOD_LIST_END
 
     void createOrder(
@@ -38,6 +42,16 @@ public:
         std::function<void(const drogon::HttpResponsePtr&)>&& callback);
 
     void getOrder(
+        const drogon::HttpRequestPtr& req,
+        std::function<void(const drogon::HttpResponsePtr&)>&& callback,
+        int orderId);
+
+    void updateStatus(
+        const drogon::HttpRequestPtr& req,
+        std::function<void(const drogon::HttpResponsePtr&)>&& callback,
+        int orderId);
+
+    void rateOrder(
         const drogon::HttpRequestPtr& req,
         std::function<void(const drogon::HttpResponsePtr&)>&& callback,
         int orderId);

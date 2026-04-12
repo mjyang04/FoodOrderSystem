@@ -8,6 +8,7 @@
 
 #include "model/Food.h"
 #include "service/ErrorCodes.h"
+#include "service/OrderStatusMachine.h"
 
 namespace fos::service {
 
@@ -187,6 +188,115 @@ Result<std::vector<OrderDto>> OrderService::listOrders(int requestingUserId,
     }
     return Result<std::vector<OrderDto>>::success(
         orderRepo_.listOrdersByCustomer(requestingUserId));
+}
+
+Result<OrderDto> OrderService::updateStatus(int orderId,
+                                             const std::string& newStatus,
+                                             int /*requestingUserId*/,
+                                             bool isAdmin)
+{
+    if (!orderRepo_.isConnected())
+    {
+        return Result<OrderDto>::failure(
+            err::kDbUnavailable, "Database is not available");
+    }
+
+    if (!isAdmin)
+    {
+        return Result<OrderDto>::failure(
+            err::kForbidden, "Only admins can change order status");
+    }
+
+    auto orderOpt = orderRepo_.findOrderById(orderId);
+    if (!orderOpt.has_value())
+    {
+        return Result<OrderDto>::failure(
+            err::kOrderNotFound,
+            "Order not found: " + std::to_string(orderId));
+    }
+
+    const auto& current = orderOpt->status;
+    if (!isValidTransition(current, newStatus))
+    {
+        return Result<OrderDto>::failure(
+            err::kInvalidStatusTransition,
+            "Cannot transition from " + current + " to " + newStatus);
+    }
+
+    if (!orderRepo_.updateOrderStatus(orderId, newStatus))
+    {
+        return Result<OrderDto>::failure(err::kDbError, "Failed to update status");
+    }
+
+    // Return the updated order.
+    auto updated = orderRepo_.findOrderById(orderId);
+    if (updated.has_value())
+    {
+        return Result<OrderDto>::success(std::move(*updated));
+    }
+    orderOpt->status = newStatus;
+    return Result<OrderDto>::success(std::move(*orderOpt));
+}
+
+Result<OrderDto> OrderService::rateOrder(int orderId,
+                                          double rating,
+                                          int requestingUserId,
+                                          bool isAdmin)
+{
+    if (!orderRepo_.isConnected())
+    {
+        return Result<OrderDto>::failure(
+            err::kDbUnavailable, "Database is not available");
+    }
+
+    auto orderOpt = orderRepo_.findOrderById(orderId);
+    if (!orderOpt.has_value())
+    {
+        return Result<OrderDto>::failure(
+            err::kOrderNotFound,
+            "Order not found: " + std::to_string(orderId));
+    }
+
+    // Owner check: only the customer who placed the order can rate it.
+    if (!isAdmin && orderOpt->customerId != requestingUserId)
+    {
+        return Result<OrderDto>::failure(
+            err::kOrderNotFound,
+            "Order not found: " + std::to_string(orderId));
+    }
+
+    if (!canRate(orderOpt->status))
+    {
+        return Result<OrderDto>::failure(
+            err::kInvalidStatusTransition,
+            "Order must be in Delivered status to rate");
+    }
+
+    if (orderOpt->rating > 0.0)
+    {
+        return Result<OrderDto>::failure(
+            err::kOrderAlreadyRated, "Order has already been rated");
+    }
+
+    if (!isValidRating(rating))
+    {
+        return Result<OrderDto>::failure(
+            err::kValidationError,
+            "Rating must be between 1.0 and 5.0");
+    }
+
+    if (!orderRepo_.updateOrderRating(orderId, rating))
+    {
+        return Result<OrderDto>::failure(err::kDbError, "Failed to save rating");
+    }
+
+    auto updated = orderRepo_.findOrderById(orderId);
+    if (updated.has_value())
+    {
+        return Result<OrderDto>::success(std::move(*updated));
+    }
+    orderOpt->rating = rating;
+    return Result<OrderDto>::success(std::move(*orderOpt));
 }
 
 } // namespace fos::service

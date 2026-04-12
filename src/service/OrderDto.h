@@ -57,6 +57,7 @@ struct OrderDto
     double totalPrice = 0.0;
     std::string deliveryOption;
     std::string status;                    // OrderStatus as lowercase string.
+    double rating = 0.0;                   // 0.0 means unrated; valid range [1.0, 5.0].
     std::string createdAt;                 // ISO timestamp (MySQL format is fine for Sprint 3).
 };
 

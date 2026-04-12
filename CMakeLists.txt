@@ -196,6 +196,7 @@ if(BUILD_TESTS)
         tests/test_config.cpp
         tests/test_auth_service.cpp
         tests/test_order_service.cpp
+        tests/test_order_status.cpp
     )
 
     add_executable(fos_tests ${TEST_SOURCES})

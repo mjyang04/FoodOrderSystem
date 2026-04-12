@@ -66,6 +66,32 @@ public:
         return orders_;
     }
 
+    bool updateOrderStatus(int orderId, const std::string& newStatus) override
+    {
+        for (auto& o : orders_)
+        {
+            if (o.orderId == orderId)
+            {
+                o.status = newStatus;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool updateOrderRating(int orderId, double rating) override
+    {
+        for (auto& o : orders_)
+        {
+            if (o.orderId == orderId)
+            {
+                o.rating = rating;
+                return true;
+            }
+        }
+        return false;
+    }
+
     // ---- Test knobs ----
     void setConnected(bool v) { connected_ = v; }
     void setFailCreate(bool v) { failCreate_ = v; }
