@@ -126,6 +126,12 @@ int main()
     const int         port   = config.getInt("HTTP_PORT", 8080);
     const int         reqThr = config.getInt("HTTP_THREADS", 1);
 
+    // ---- AI service URL (Sprint 4) ----
+    const std::string aiUrl = config.getString("AI_SERVICE_URL",
+                                               "http://127.0.0.1:8000");
+    LOG_INFO("AI service URL: " << aiUrl
+             << " (override with AI_SERVICE_URL env var)");
+
     LOG_INFO("Starting fos_api on " << host << ":" << port
              << " with " << reqThr << " worker thread(s)");
 
