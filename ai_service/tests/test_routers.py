@@ -24,13 +24,24 @@ class FakeLlmClient:
 
 @pytest.fixture
 def _fake_menu(sample_menu: list[FoodMeta]):
-    """Patch deps to return sample menu without DB."""
+    """Patch deps to return sample menu and corpus without DB."""
     from fos_ai import deps
-    deps.init_menu(sample_menu)
     from fos_ai.config import Settings
+    from fos_ai.ml.corpus import MenuCorpus, build_corpus
+    from fos_ai.ml.embedding import Embedder
+
+    deps.init_menu(sample_menu)
     deps.init_settings(Settings(llm_provider="anthropic", anthropic_api_key="fake"))
+
+    embedder = Embedder()
+    deps.init_embedder(embedder)
+    corpus = build_corpus(sample_menu, embedder)
+    deps.init_corpus(corpus)
+
     yield
+
     deps.init_menu([])
+    deps.init_corpus(MenuCorpus())
 
 
 @pytest.fixture
@@ -43,9 +54,12 @@ def client():
 class TestHealthRouter:
 
     def test_health_not_ready_on_cold_start(self, client: TestClient):
-        """Before menu loads, /health returns ready=false."""
+        """Before corpus loads, /health returns ready=false."""
         from fos_ai import deps
+        from fos_ai.ml.corpus import MenuCorpus
+
         deps.init_menu([])
+        deps.init_corpus(MenuCorpus())
         deps.init_settings(
             __import__("fos_ai.config", fromlist=["Settings"]).Settings(
                 llm_provider="anthropic", anthropic_api_key="fake"
@@ -58,8 +72,8 @@ class TestHealthRouter:
         assert body["ready"] is False
         assert body["corpus_size"] == 0
 
-    def test_health_ready_with_menu(self, _fake_menu, client: TestClient):
-        """After menu loads, /health returns ready=true with corpus_size."""
+    def test_health_ready_with_corpus(self, _fake_menu, client: TestClient):
+        """After corpus loads, /health returns ready=true with corpus_size."""
         resp = client.get("/health")
         assert resp.status_code == 200
         body = resp.json()
@@ -150,5 +164,104 @@ class TestParseOrderRouter:
             "/ai/parse-order",
             json={"text": "order something"},
             headers={"X-User-Id": "5"},
+        )
+        assert resp.status_code == 503
+
+
+class TestSearchRouter:
+
+    def test_search_happy_path(self, _fake_menu, client: TestClient):
+        """GET /ai/search with valid query returns results."""
+        resp = client.get("/ai/search", params={"q": "spicy chicken"})
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["query"] == "spicy chicken"
+        assert body["count"] > 0
+        assert len(body["results"]) == body["count"]
+
+    def test_search_empty_query(self, _fake_menu, client: TestClient):
+        """Empty q → 422 (FastAPI min_length=1)."""
+        resp = client.get("/ai/search", params={"q": ""})
+        assert resp.status_code == 422
+
+    def test_search_missing_query(self, _fake_menu, client: TestClient):
+        """No q param → 422."""
+        resp = client.get("/ai/search")
+        assert resp.status_code == 422
+
+    def test_search_limit_respected(self, _fake_menu, client: TestClient):
+        """Limit parameter is respected."""
+        resp = client.get("/ai/search", params={"q": "food", "limit": 2})
+        assert resp.status_code == 200
+        assert resp.json()["count"] <= 2
+
+    def test_search_no_corpus(self, client: TestClient):
+        """No corpus loaded → 503."""
+        from fos_ai import deps
+        from fos_ai.ml.corpus import MenuCorpus
+
+        deps.init_corpus(MenuCorpus())
+        deps.init_settings(
+            __import__("fos_ai.config", fromlist=["Settings"]).Settings(
+                llm_provider="anthropic", anthropic_api_key="fake"
+            )
+        )
+
+        resp = client.get("/ai/search", params={"q": "test"})
+        assert resp.status_code == 503
+
+
+class TestRecommendRouter:
+
+    def test_recommend_cold_start(self, _fake_menu, client: TestClient):
+        """User with no DB history gets popularity fallback."""
+        with patch("fos_ai.routers.recommend.fetch_user_order_food_ids", return_value=[]), \
+             patch("fos_ai.deps.get_db_conn", return_value=None):
+            resp = client.get(
+                "/ai/recommend",
+                headers={"X-User-Id": "999"},
+            )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["strategy"] == "popularity_fallback"
+        assert body["user_has_history"] is False
+        assert body["count"] > 0
+
+    def test_recommend_with_history(self, _fake_menu, client: TestClient):
+        """User with order history gets content-based recs."""
+        with patch("fos_ai.routers.recommend.fetch_user_order_food_ids", return_value=[1]), \
+             patch("fos_ai.deps.get_db_conn", return_value=None):
+            resp = client.get(
+                "/ai/recommend",
+                headers={"X-User-Id": "1"},
+            )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["strategy"] == "content_based"
+        assert body["user_has_history"] is True
+        # Should not include already-ordered food
+        returned_ids = {item["food_id"] for item in body["items"]}
+        assert 1 not in returned_ids
+
+    def test_recommend_missing_header(self, _fake_menu, client: TestClient):
+        """No X-User-Id header → 422."""
+        resp = client.get("/ai/recommend")
+        assert resp.status_code == 422
+
+    def test_recommend_no_corpus(self, client: TestClient):
+        """No corpus loaded → 503."""
+        from fos_ai import deps
+        from fos_ai.ml.corpus import MenuCorpus
+
+        deps.init_corpus(MenuCorpus())
+        deps.init_settings(
+            __import__("fos_ai.config", fromlist=["Settings"]).Settings(
+                llm_provider="anthropic", anthropic_api_key="fake"
+            )
+        )
+
+        resp = client.get(
+            "/ai/recommend",
+            headers={"X-User-Id": "1"},
         )
         assert resp.status_code == 503
