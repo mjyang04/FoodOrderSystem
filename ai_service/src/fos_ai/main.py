@@ -9,7 +9,7 @@ from fastapi import FastAPI
 
 from fos_ai.config import Settings
 from fos_ai import deps
-from fos_ai.routers import health, parse
+from fos_ai.routers import health, parse, recommend, search
 
 logging.basicConfig(
     level=logging.INFO,
@@ -46,6 +46,24 @@ async def lifespan(app: FastAPI):
         logger.info("Menu loaded: %d items", len(menu))
     except Exception:
         logger.warning("MySQL not available — menu will be empty, AI features degraded", exc_info=True)
+        menu = []
+
+    # Build embedding corpus
+    try:
+        from fos_ai.ml.embedding import Embedder
+        from fos_ai.ml.corpus import build_corpus
+
+        embedder = Embedder()
+        deps.init_embedder(embedder)
+
+        if menu:
+            corpus = build_corpus(menu, embedder)
+            deps.init_corpus(corpus)
+            logger.info("Corpus ready — %d items encoded", corpus.size)
+        else:
+            logger.warning("Skipping corpus build — no menu items")
+    except Exception:
+        logger.warning("Embedder/corpus init failed — search/recommend degraded", exc_info=True)
 
     # Create LLM client
     try:
@@ -90,3 +108,5 @@ app = FastAPI(
 
 app.include_router(health.router)
 app.include_router(parse.router)
+app.include_router(search.router)
+app.include_router(recommend.router)

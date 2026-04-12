@@ -11,12 +11,12 @@ router = APIRouter(tags=["health"])
 
 @router.get("/health", response_model=HealthResponse)
 def health() -> HealthResponse:
-    from fos_ai.deps import get_menu, get_settings
+    from fos_ai.deps import get_corpus, get_menu, get_settings
 
     settings = get_settings()
-    menu = get_menu()
+    corpus = get_corpus()
     return HealthResponse(
-        ready=len(menu) > 0,
-        corpus_size=len(menu),
+        ready=corpus.ready,
+        corpus_size=corpus.size,
         llm_provider=settings.llm_provider,
     )

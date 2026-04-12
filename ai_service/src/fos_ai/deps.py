@@ -1,4 +1,4 @@
-"""Singleton dependencies: settings, LLM client, menu cache, DB connection."""
+"""Singleton dependencies: settings, LLM client, menu cache, DB connection, corpus."""
 
 from __future__ import annotations
 
@@ -6,6 +6,8 @@ import logging
 from typing import Any
 
 from fos_ai.config import Settings
+from fos_ai.ml.corpus import MenuCorpus
+from fos_ai.ml.embedding import Embedder
 from fos_ai.schemas import FoodMeta
 from fos_ai.services.llm_client import LlmClient
 
@@ -17,6 +19,8 @@ _settings: Settings | None = None
 _llm_client: LlmClient | None = None
 _menu: list[FoodMeta] = []
 _db_conn: Any = None
+_embedder: Embedder | None = None
+_corpus: MenuCorpus = MenuCorpus()
 
 
 def init_settings(settings: Settings) -> None:
@@ -39,6 +43,16 @@ def init_db_conn(conn: Any) -> None:
     _db_conn = conn
 
 
+def init_embedder(embedder: Embedder) -> None:
+    global _embedder
+    _embedder = embedder
+
+
+def init_corpus(corpus: MenuCorpus) -> None:
+    global _corpus
+    _corpus = corpus
+
+
 # ---- getters ----
 
 def get_settings() -> Settings:
@@ -58,3 +72,12 @@ def get_menu() -> list[FoodMeta]:
 def get_db_conn() -> Any:
     assert _db_conn is not None, "DB connection not initialised"
     return _db_conn
+
+
+def get_embedder() -> Embedder:
+    assert _embedder is not None, "Embedder not initialised"
+    return _embedder
+
+
+def get_corpus() -> MenuCorpus:
+    return _corpus

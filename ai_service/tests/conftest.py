@@ -7,7 +7,7 @@ import pytest
 from fos_ai.schemas import FoodMeta
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def sample_menu() -> list[FoodMeta]:
     """A small menu mirroring the seed data for testing."""
     return [
