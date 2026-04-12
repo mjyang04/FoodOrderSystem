@@ -47,4 +47,13 @@ inline constexpr const char* kForbidden          = "FORBIDDEN";
 inline constexpr const char* kDbUnavailable      = "DB_UNAVAILABLE";
 inline constexpr const char* kDbError            = "DB_ERROR";
 
+// ---- AI / LLM layer (Sprint 4) ----
+// These codes map to the Python fos_ai microservice error responses.
+// AiController translates upstream HTTP statuses into these codes so
+// clients see a consistent contract regardless of the AI backend.
+inline constexpr const char* kAiUnavailable      = "AI_UNAVAILABLE";
+inline constexpr const char* kAiBadRequest       = "AI_BAD_REQUEST";
+inline constexpr const char* kAiUpstreamError    = "AI_UPSTREAM_ERROR";
+inline constexpr const char* kAiLlmRefused       = "AI_LLM_REFUSED";
+
 } // namespace fos::service::err

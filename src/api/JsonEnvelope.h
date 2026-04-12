@@ -88,6 +88,11 @@ inline drogon::HttpStatusCode statusForError(const std::string& code)
     if (code == err::kDbUnavailable)      return drogon::k503ServiceUnavailable;
     if (code == err::kDbError)            return drogon::k500InternalServerError;
     if (code == err::kJwtNotConfigured)   return drogon::k500InternalServerError;
+    // Sprint 4: AI/LLM layer codes. See plan/sprint_4_ai_layer.md §5.
+    if (code == err::kAiUnavailable)      return drogon::k503ServiceUnavailable;
+    if (code == err::kAiBadRequest)       return drogon::k400BadRequest;
+    if (code == err::kAiUpstreamError)    return drogon::k502BadGateway;
+    if (code == err::kAiLlmRefused)       return drogon::k422UnprocessableEntity;
     return drogon::k400BadRequest;
 }
 

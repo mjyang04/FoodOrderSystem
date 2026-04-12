@@ -140,6 +140,7 @@ if(Drogon_FOUND)
         src/api/controllers/AuthController.cc
         src/api/controllers/RestaurantController.cc
         src/api/controllers/OrderController.cc
+        src/api/controllers/AiController.cc
         src/api/filters/JwtAuthFilter.cc
         src/service/JwtService.cpp
     )
@@ -207,6 +208,15 @@ if(BUILD_TESTS)
 
     include(GoogleTest)
     gtest_discover_tests(fos_tests)
+
+    # Sprint 4: AI error code mapping tests (depend on Drogon headers for
+    # HttpStatusCode enum, so they get their own target).
+    if(Drogon_FOUND)
+        add_executable(fos_ai_tests tests/test_ai_error_codes.cpp)
+        target_link_libraries(fos_ai_tests PRIVATE gtest_main Drogon::Drogon)
+        target_include_directories(fos_ai_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+        gtest_discover_tests(fos_ai_tests)
+    endif()
 
     message(STATUS "Unit tests enabled (GoogleTest via FetchContent)")
 endif()
