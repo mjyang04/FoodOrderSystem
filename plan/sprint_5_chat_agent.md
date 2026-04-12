@@ -197,13 +197,31 @@ data: {"finish_reason": "end_turn"}
 
 ### Phase 2: Python Chat Engine
 
+**New files:**
+- `ai_service/src/fos_ai/services/session_store.py` (~80 lines) — `SessionStore` class: `dict[str, ChatSession]` with `threading.Lock`, UUID4 IDs, 30-min TTL, background eviction task
+- `ai_service/src/fos_ai/services/chat_tools.py` (~150 lines) — tool definitions (Anthropic format), `ToolExecutor` dispatch: tool_name → service call, returns JSON-serializable result
+- `ai_service/src/fos_ai/services/chat_engine.py` (~200 lines) — `ChatEngine.run(session, message, user_id)`: agentic loop (send messages → execute tool_use blocks → re-send, max 5 iterations)
+- `ai_service/src/fos_ai/schemas_chat.py` (~80 lines) — `ChatRequest`, `ChatResponse`, `ChatMessage`, `StreamEvent`, `ChatSession`
+- `ai_service/src/fos_ai/db/order_repo.py` (~40 lines) — `fetch_order_status(conn, order_id, user_id)` for `check_order_status` tool
+
+**Tests:**
+- `ai_service/tests/test_session_store.py` — create/get/update/TTL expiry/max cap
+- `ai_service/tests/test_chat_tools.py` — tool schema valid, executor dispatches, unknown tool error
+- `ai_service/tests/test_chat_engine.py` — single-turn text, single tool call, multi-tool, max-iteration cap, session continuity
+
 | Step | Action | Files |
 |------|--------|-------|
-| 2.1 | RED→GREEN: session store | `session_store.py`, `test_session_store.py` |
-| 2.2 | RED→GREEN: chat tools | `chat_tools.py`, `test_chat_tools.py`, `order_repo.py` |
+| 2.1 | RED→GREEN: session store | `session_store.py`, `schemas_chat.py`, `test_session_store.py` |
+| 2.2 | RED→GREEN: chat tools | `chat_tools.py`, `order_repo.py`, `test_chat_tools.py` |
 | 2.3 | RED→GREEN: chat engine (agentic loop) | `chat_engine.py`, `test_chat_engine.py` |
 
 ### Phase 3: LLM Client Extension
+
+**Modify:** `ai_service/src/fos_ai/services/llm_client.py`
+- Add `messages()` method to `LlmClient` Protocol — accepts full `list[dict]` message history instead of single user string
+- Add `messages_stream()` method — yields `StreamEvent` dataclasses (text_delta, tool_use, done)
+- Implement on both `AnthropicLlmClient` (using `anthropic.Anthropic.messages.create` with `stream=True`) and `OpenAILlmClient` (using `openai.OpenAI.chat.completions.create` with `stream=True`)
+- Existing `tool_call()` unchanged (parser.py still uses it)
 
 | Step | Action | Files |
 |------|--------|-------|
@@ -211,12 +229,29 @@ data: {"finish_reason": "end_turn"}
 
 ### Phase 4: Chat Router + C++ Proxy
 
+**New files:**
+- `ai_service/src/fos_ai/routers/chat.py` (~100 lines) — `POST /ai/chat`: reads `X-User-Id`, gets/creates session, calls `ChatEngine.run()`, returns JSON or SSE based on `stream` field
+- C++ changes:
+  - `AiController.h/cc` — add `chat()` handler: for `stream=true`, pipe SSE bytes via chunked transfer; for `stream=false`, forward JSON normally
+  - `HealthController.h/cc` — remove `aiChat` 501 stub (route moves to AiController)
+  - `deps.py` — add `SessionStore` singleton, init in lifespan
+
 | Step | Action | Files |
 |------|--------|-------|
-| 4.1 | RED→GREEN: chat router | `routers/chat.py`, `test_chat_router.py` |
+| 4.1 | RED→GREEN: chat router | `routers/chat.py`, `test_chat_router.py`, `deps.py`, `main.py` |
 | 4.2 | C++ AiController::chat + SSE proxy | `AiController.*`, `HealthController.*` |
 
 ### Phase 5: Evaluation Harness
+
+**New files:**
+- `eval/conftest.py` — shared fixtures (menu, embedder, corpus, mock LLM)
+- `eval/data/search_cases.json` — labeled query→food_id pairs (~15 cases)
+- `eval/data/recommend_cases.json` — user history→expected recs (~10 cases)
+- `eval/data/parse_cases.json` — NL text→expected draft fields (~10 cases)
+- `eval/test_search_quality.py` — MRR (Mean Reciprocal Rank) + Hit@5 metrics
+- `eval/test_recommend_quality.py` — filter-seen + cuisine-affinity checks
+- `eval/test_parse_quality.py` — field match with mock LLM (tests resolution logic, not LLM)
+- Run with: `uv run pytest eval/ -m eval`
 
 | Step | Action | Files |
 |------|--------|-------|
