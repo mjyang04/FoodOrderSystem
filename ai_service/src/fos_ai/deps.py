@@ -8,7 +8,10 @@ from typing import Any
 from fos_ai.config import Settings
 from fos_ai.ml.corpus import MenuCorpus
 from fos_ai.ml.embedding import Embedder
+from fos_ai.ml.reranker import Reranker
+from fos_ai.ml.vector_store import VectorStore
 from fos_ai.schemas import FoodMeta
+from fos_ai.services.intent_classifier import IntentClassifier
 from fos_ai.services.llm_client import LlmClient
 from fos_ai.services.session_store import SessionStore
 
@@ -23,6 +26,10 @@ _db_conn: Any = None
 _embedder: Embedder | None = None
 _corpus: MenuCorpus = MenuCorpus()
 _session_store: SessionStore = SessionStore()
+_vector_store: VectorStore | None = None
+_reranker: Reranker | None = None
+_intent_classifier: IntentClassifier | None = None
+_intent_source: str = "none"  # "lora" | "fallback" | "none"
 
 
 def init_settings(settings: Settings) -> None:
@@ -60,6 +67,29 @@ def init_session_store(store: SessionStore) -> None:
     _session_store = store
 
 
+def init_vector_store(store: VectorStore | None) -> None:
+    global _vector_store
+    _vector_store = store
+
+
+def init_reranker(reranker: Reranker | None) -> None:
+    global _reranker
+    _reranker = reranker
+
+
+def init_intent_classifier(
+    classifier: IntentClassifier | None,
+    source: str = "none",
+) -> None:
+    """Wire the active intent classifier plus a label for observability.
+
+    ``source`` should be one of ``"lora"``, ``"fallback"``, or ``"none"``.
+    """
+    global _intent_classifier, _intent_source
+    _intent_classifier = classifier
+    _intent_source = source
+
+
 # ---- getters ----
 
 def get_settings() -> Settings:
@@ -92,3 +122,23 @@ def get_corpus() -> MenuCorpus:
 
 def get_session_store() -> SessionStore:
     return _session_store
+
+
+def get_vector_store() -> VectorStore | None:
+    """Return the active vector store, or ``None`` if hybrid search is disabled."""
+    return _vector_store
+
+
+def get_reranker() -> Reranker | None:
+    """Return the active cross-encoder reranker, or ``None`` when disabled."""
+    return _reranker
+
+
+def get_intent_classifier() -> IntentClassifier | None:
+    """Return the active intent classifier, or ``None`` when not wired."""
+    return _intent_classifier
+
+
+def get_intent_source() -> str:
+    """Return the label of the active intent classifier path."""
+    return _intent_source

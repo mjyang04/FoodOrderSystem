@@ -9,6 +9,8 @@
 //   GET  /api/ai/search       -> fos_ai GET  /ai/search
 //   GET  /api/ai/recommend    -> fos_ai GET  /ai/recommend
 //   POST /api/ai/chat         -> fos_ai POST /ai/chat (Sprint 5)
+//   GET  /api/ai/stats        -> fos_ai GET  /ai/stats (Sprint 6 Phase 5,
+//                                admin-only, aggregated LLM + cache metrics)
 //
 // The controller extracts the authenticated userId from JwtAuthFilter,
 // forwards it as an X-User-Id header to the Python service (which binds
@@ -31,6 +33,8 @@ public:
                   "/api/ai/recommend", drogon::Get, "JwtAuthFilter");
     ADD_METHOD_TO(AiController::chat,
                   "/api/ai/chat", drogon::Post, "JwtAuthFilter");
+    ADD_METHOD_TO(AiController::stats,
+                  "/api/ai/stats", drogon::Get, "JwtAuthFilter");
     METHOD_LIST_END
 
     void parseOrder(
@@ -46,6 +50,10 @@ public:
         std::function<void(const drogon::HttpResponsePtr&)>&& callback);
 
     void chat(
+        const drogon::HttpRequestPtr& req,
+        std::function<void(const drogon::HttpResponsePtr&)>&& callback);
+
+    void stats(
         const drogon::HttpRequestPtr& req,
         std::function<void(const drogon::HttpResponsePtr&)>&& callback);
 };

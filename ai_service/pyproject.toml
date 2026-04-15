@@ -13,6 +13,12 @@ dependencies = [
     "transformers>=4.44.0",
     "mysql-connector-python>=9.0.0",
     "numpy>=1.26.0",
+    "qdrant-client>=1.17.1",
+    "rank-bm25>=0.2.2",
+    "sentence-transformers>=5.4.1",
+    "opentelemetry-api>=1.41.0",
+    "opentelemetry-sdk>=1.41.0",
+    "opentelemetry-exporter-otlp>=1.41.0",
 ]
 
 [project.optional-dependencies]
@@ -22,10 +28,19 @@ dev = [
     "httpx>=0.27.0",
     "respx>=0.22.0",
 ]
+training = [
+    "peft>=0.13",
+    "trl>=0.11",
+    "datasets>=3.0",
+    "accelerate>=0.34",
+]
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/fos_ai", "training/fos_ai_training"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
@@ -33,3 +48,5 @@ testpaths = ["tests"]
 markers = [
     "eval: quality evaluation against labelled datasets (run with `pytest eval/ -m eval`)",
 ]
+# ``eval/`` is intentionally outside ``testpaths`` so unit runs stay fast;
+# invoke explicitly: ``pytest eval/ -m eval``.

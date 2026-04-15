@@ -1,0 +1,148 @@
+[
+  {
+    "id": "c01",
+    "turns": [
+      {"user": "Hi", "expected_tool": null, "expected_text_contains": ["help"]}
+    ],
+    "judge_criteria": "A bare greeting should be acknowledged politely without any tool call."
+  },
+  {
+    "id": "c02",
+    "turns": [
+      {"user": "What's on the menu?", "expected_tool": "search_menu", "expected_text_contains": ["menu"]}
+    ],
+    "judge_criteria": "Open menu browsing should use search_menu then summarise results."
+  },
+  {
+    "id": "c03",
+    "turns": [
+      {"user": "I want something spicy", "expected_tool": "search_menu", "expected_text_contains": ["spicy"]}
+    ],
+    "judge_criteria": "Preference-based search must call search_menu with a matching query."
+  },
+  {
+    "id": "c04",
+    "turns": [
+      {"user": "Recommend me something", "expected_tool": "get_recommendations", "expected_text_contains": ["recommend"]}
+    ],
+    "judge_criteria": "Generic recommendation request should call get_recommendations."
+  },
+  {
+    "id": "c05",
+    "turns": [
+      {"user": "What have I been ordering lately?", "expected_tool": "get_recommendations", "expected_text_contains": ["history"]}
+    ],
+    "judge_criteria": "History-driven recommendations are acceptable via get_recommendations."
+  },
+  {
+    "id": "c06",
+    "turns": [
+      {"user": "I want two kung pao chickens", "expected_tool": "create_order_draft", "expected_text_contains": ["draft", "confirm"]}
+    ],
+    "judge_criteria": "Explicit order request should produce a draft and remind the user to confirm."
+  },
+  {
+    "id": "c07",
+    "turns": [
+      {"user": "What's the status of order 42?", "expected_tool": "check_order_status", "expected_text_contains": ["order", "status"]}
+    ],
+    "judge_criteria": "Order status query must call check_order_status."
+  },
+  {
+    "id": "c08",
+    "turns": [
+      {"user": "Show me some cantonese food", "expected_tool": "search_menu", "expected_text_contains": ["cantonese"]},
+      {"user": "Order a roast duck please", "expected_tool": "create_order_draft", "expected_text_contains": ["roast", "duck"]}
+    ],
+    "judge_criteria": "Browse then order flow should produce a roast-duck draft at the end."
+  },
+  {
+    "id": "c09",
+    "turns": [
+      {"user": "Recommend me something", "expected_tool": "get_recommendations", "expected_text_contains": ["recommend"]},
+      {"user": "Order the first one", "expected_tool": "create_order_draft", "expected_text_contains": ["draft"]}
+    ],
+    "judge_criteria": "Recommend then order should land on a draft; ambiguity about 'the first one' is acceptable if clarified."
+  },
+  {
+    "id": "c10",
+    "turns": [
+      {"user": "Thanks, that's all", "expected_tool": null, "expected_text_contains": ["welcome"]}
+    ],
+    "judge_criteria": "A polite sign-off should close the conversation with no tool call."
+  },
+  {
+    "id": "c11",
+    "turns": [
+      {"user": "Any japanese food?", "expected_tool": "search_menu", "expected_text_contains": ["japanese"]}
+    ],
+    "judge_criteria": "Cuisine query routes to search_menu."
+  },
+  {
+    "id": "c12",
+    "turns": [
+      {"user": "I'd like one tonkotsu ramen", "expected_tool": "create_order_draft", "expected_text_contains": ["tonkotsu", "draft"]}
+    ],
+    "judge_criteria": "Specific item order should draft it."
+  },
+  {
+    "id": "c13",
+    "turns": [
+      {"user": "Check order 7 status", "expected_tool": "check_order_status", "expected_text_contains": ["order", "7"]}
+    ],
+    "judge_criteria": "Status check with numeric id should call check_order_status."
+  },
+  {
+    "id": "c14",
+    "turns": [
+      {"user": "Can I get a spicy sichuan meal?", "expected_tool": "search_menu", "expected_text_contains": ["sichuan"]},
+      {"user": "Two mapo tofus then", "expected_tool": "create_order_draft", "expected_text_contains": ["mapo", "tofu"]}
+    ],
+    "judge_criteria": "Search then draft sichuan order."
+  },
+  {
+    "id": "c15",
+    "turns": [
+      {"user": "show me italian desserts", "expected_tool": "search_menu", "expected_text_contains": ["italian"]}
+    ],
+    "judge_criteria": "Should search italian desserts."
+  },
+  {
+    "id": "c16",
+    "turns": [
+      {"user": "Recommend me something new", "expected_tool": "get_recommendations", "expected_text_contains": ["recommend"]},
+      {"user": "Cancel that idea actually", "expected_tool": null, "expected_text_contains": ["no problem"]}
+    ],
+    "judge_criteria": "User cancels after a rec; assistant acknowledges without placing an order."
+  },
+  {
+    "id": "c17",
+    "turns": [
+      {"user": "How do I check my past orders?", "expected_tool": null, "expected_text_contains": ["order", "history"]}
+    ],
+    "judge_criteria": "Meta question; no tool call needed, just guidance."
+  },
+  {
+    "id": "c18",
+    "turns": [
+      {"user": "What's popular today?", "expected_tool": "search_menu", "expected_text_contains": ["popular"]}
+    ],
+    "judge_criteria": "Popularity-style question routes to search_menu."
+  },
+  {
+    "id": "c19",
+    "turns": [
+      {"user": "Order tiramisu for me", "expected_tool": "create_order_draft", "expected_text_contains": ["tiramisu", "draft"]}
+    ],
+    "judge_criteria": "Single item order should draft."
+  },
+  {
+    "id": "c20",
+    "turns": [
+      {"user": "Find moroccan options", "expected_tool": "search_menu", "expected_text_contains": ["moroccan"]},
+      {"user": "Order one tagine", "expected_tool": "create_order_draft", "expected_text_contains": ["tagine", "draft"]},
+      {"user": "Thanks!", "expected_tool": null, "expected_text_contains": ["welcome"]}
+    ],
+    "judge_criteria": "Three-turn flow — search, draft, sign-off."
+  }
+]

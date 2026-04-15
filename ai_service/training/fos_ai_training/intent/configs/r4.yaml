@@ -1,0 +1,9 @@
+# LoRA sweep — rank 4
+# Small adapter, ~0.1% trainable params. Use as a "can we even fit?" baseline.
+r: 4
+lora_alpha: 8
+lora_dropout: 0.05
+lr: 2.0e-4
+epochs: 3
+batch_size: 4
+grad_accum: 4
