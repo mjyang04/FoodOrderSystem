@@ -1,4 +1,8 @@
-"""Semantic menu search — encode query, cosine top-k against corpus."""
+"""Menu search — delegates to ``hybrid_search`` when a VectorStore is
+available, otherwise falls back to the original cosine top-k over the
+in-memory corpus. Public signature is kept stable so the FastAPI router
+does not need to change.
+"""
 
 from __future__ import annotations
 
@@ -8,6 +12,7 @@ import torch
 
 from fos_ai.ml.corpus import MenuCorpus
 from fos_ai.ml.embedding import Embedder
+from fos_ai.ml.vector_store import VectorStore
 from fos_ai.schemas import SearchResult
 
 logger = logging.getLogger(__name__)
@@ -21,14 +26,19 @@ def search(
     corpus: MenuCorpus,
     embedder: Embedder,
     limit: int = _DEFAULT_LIMIT,
+    vector_store: VectorStore | None = None,
 ) -> list[SearchResult]:
-    """Encode *query*, compute cosine similarity against the corpus, return top-k.
+    """Search the menu corpus and return top-``limit`` ``SearchResult``.
 
     Args:
         query: Free-text search string.
         corpus: Pre-encoded menu corpus.
         embedder: The Embedder instance for encoding the query.
         limit: Maximum number of results (clamped to [1, 20]).
+        vector_store: Optional Qdrant-backed vector store. When supplied
+            (and the collection is populated) the call is routed through
+            ``hybrid_search`` for BM25 + dense + RRF fusion. When ``None``
+            we use the cosine-only fallback.
 
     Returns:
         Sorted list of ``SearchResult`` (descending by score).
@@ -36,12 +46,30 @@ def search(
     if not corpus.ready:
         return []
 
+    if vector_store is not None:
+        from fos_ai.services.hybrid_search import hybrid_search
+
+        return hybrid_search(
+            query=query,
+            corpus=corpus,
+            embedder=embedder,
+            vector_store=vector_store,
+            limit=limit,
+        )
+
+    return _cosine_search(query, corpus, embedder, limit)
+
+
+def _cosine_search(
+    query: str,
+    corpus: MenuCorpus,
+    embedder: Embedder,
+    limit: int,
+) -> list[SearchResult]:
+    """Original cosine top-k implementation — kept as a fallback."""
     limit = max(1, min(limit, _MAX_LIMIT))
 
-    # Encode the query into a (1, dim) vector
-    query_vec = embedder.encode([query])  # (1, 384)
-
-    # Cosine similarity — both sides are L2-normalised, so dot product = cosine
+    query_vec = embedder.encode([query])  # (1, dim)
     scores = (corpus.tensor @ query_vec.T).squeeze(dim=1)  # (N,)
 
     k = min(limit, corpus.size)

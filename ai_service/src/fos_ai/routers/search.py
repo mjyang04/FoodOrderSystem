@@ -19,16 +19,23 @@ def search_menu(
     limit: int = Query(10, ge=1, le=20),
 ) -> SearchResponse:
     """Semantic search over the menu corpus."""
-    from fos_ai.deps import get_corpus, get_embedder
+    from fos_ai.deps import get_corpus, get_embedder, get_vector_store
 
     corpus = get_corpus()
     if not corpus.ready:
         raise HTTPException(status_code=503, detail="Menu corpus not loaded yet")
 
     embedder = get_embedder()
+    vector_store = get_vector_store()
 
     from fos_ai.services.search import search
 
-    results = search(query=q, corpus=corpus, embedder=embedder, limit=limit)
+    results = search(
+        query=q,
+        corpus=corpus,
+        embedder=embedder,
+        limit=limit,
+        vector_store=vector_store,
+    )
 
     return SearchResponse(query=q, results=results, count=len(results))
