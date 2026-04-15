@@ -1,0 +1,53 @@
+name: ai-eval
+
+on:
+  pull_request:
+    paths:
+      - "ai_service/**"
+      - ".github/workflows/ai-eval.yml"
+  push:
+    branches: [develop, master]
+    paths:
+      - "ai_service/**"
+      - ".github/workflows/ai-eval.yml"
+  workflow_dispatch:
+
+jobs:
+  eval:
+    name: eval gates
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ai_service
+    env:
+      # Force stubbed paths — no real LLM calls in CI.
+      EVAL_USE_REAL_LLM: "0"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Sync deps
+        run: uv sync --extra dev
+
+      - name: Run eval suite
+        run: uv run pytest eval/ -m eval -s
+
+      - name: Generate markdown report
+        if: always()
+        run: uv run python -m fos_ai.eval.run --suite all --quiet
+
+      - name: Upload report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-report
+          path: ai_service/eval/reports/*.md
+          if-no-files-found: warn
