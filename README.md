@@ -8,41 +8,52 @@ A full-stack food ordering system with a C++17 REST API, Python AI microservice 
 Client (curl / Postman / web UI)
         |   Authorization: Bearer <jwt>
         v
-+-----------------------------------------------+
-|  fos_api  (C++17, Drogon)  :8080              |
-|                                                |
-|  JwtAuthFilter -> AuthContext { userId, role }  |
-|       |                                        |
-|       +-- AuthController     POST /api/auth/*  |
-|       +-- RestaurantController GET /api/restaurants |
-|       +-- OrderController    POST/GET /api/orders  |
-|       +-- AiController       /api/ai/*  ----+  |
-|       +-- HealthController   GET /health    |  |
-+--------------------------------------+------+--+
-                                       | HTTP (loopback)
-                                       | X-User-Id header
-                                       v
-+-----------------------------------------------+
-|  fos_ai  (Python 3.11, FastAPI)  :8000        |
-|                                                |
-|  POST /ai/parse-order -> parser.py -> LLM     |
-|  GET  /ai/search      -> search.py -> PyTorch |
-|  GET  /ai/recommend   -> recommender.py       |
-|  POST /ai/chat        -> chat_engine.py       |
-|       ReAct loop, 4 tools, SSE streaming      |
-|                                                |
-|  Startup: load MiniLM model, encode menu,     |
-|           init SessionStore (30-min TTL)      |
-+-----------------------------------------------+
-        |   read-only SELECT
-        v
-+-----------------------------------------------+
-|  MySQL  food_order_system                      |
-|  users, restaurants, foods, orders, riders     |
-+-----------------------------------------------+
++-------------------------------------------------------+
+|  fos_api  (C++17, Drogon)  :8080                      |
+|                                                        |
+|  JwtAuthFilter -> AuthContext { userId, role }         |
+|       |                                                |
+|       +-- AuthController     POST /api/auth/*          |
+|       +-- RestaurantController GET /api/restaurants    |
+|       +-- OrderController    POST/GET /api/orders      |
+|       +-- AiController       /api/ai/*       ----+    |
+|       +-- AiStatsController  GET /api/ai/stats (admin) |
+|       +-- HealthController   GET /health         |    |
++---------------------------------------------------+----+
+                                                   | HTTP (loopback)
+                                                   | X-User-Id header
+                                                   v
++--------------------------------------------------------+
+|  fos_ai  (Python 3.11, FastAPI)  :8000                 |
+|                                                         |
+|  Routers:                                               |
+|    POST /ai/parse-order  -> parser.py      -> LlmClient |
+|    GET  /ai/search       -> hybrid_search  -> retrieval |
+|    GET  /ai/recommend    -> recommender.py             |
+|    POST /ai/chat         -> chat_engine.py (SSE)       |
+|    POST /ai/intent       -> intent_classifier (LoRA)   |
+|    GET  /ai/stats        -> stats aggregator (admin)   |
+|                                                         |
+|  Retrieval stack:                                       |
+|    BM25 (rank_bm25) + dense (Qdrant) --RRF--> top-20   |
+|                                     -> bge-reranker    |
+|                                        (optional)      |
+|                                                         |
+|  Cross-cutting:                                         |
+|    @trace_llm_call  -> OpenTelemetry span + cost       |
+|    @cached(ttl=300) -> parse / search TTL+LRU cache    |
+|    SessionStore (30-min TTL)                            |
++--------------------------------------------------------+
+        |               |                       |
+        v               v                       v
++----------------+  +-------------+  +----------------------+
+|  MySQL         |  | Qdrant      |  | OTLP collector       |
+|  users, foods, |  | menu_items  |  | (Jaeger / stdout)    |
+|  orders, ...   |  | vectors     |  |                      |
++----------------+  +-------------+  +----------------------+
 ```
 
-**Trust boundary:** JWT validation happens in C++ (`JwtAuthFilter`). The Python service binds to loopback only and trusts the `X-User-Id` header forwarded by `AiController`.
+**Trust boundary:** JWT validation happens in C++ (`JwtAuthFilter`). The Python service binds to loopback only and trusts the `X-User-Id` header forwarded by `AiController`. `/ai/stats` additionally requires an admin role, enforced in the C++ proxy at `AiStatsController`.
 
 ## Features
 
@@ -54,9 +65,12 @@ Client (curl / Postman / web UI)
 
 ### AI Service (fos_ai)
 - **Parse Order** — natural language to structured order draft via LLM tool-calling (Anthropic/OpenAI)
-- **Semantic Search** — encode query with MiniLM, cosine similarity against pre-encoded menu corpus
+- **Hybrid search** — BM25 + dense embeddings (Qdrant) fused with RRF; optional cross-encoder rerank (`bge-reranker-base`)
 - **Recommendations** — content-based (user profile from order history) with cold-start popularity fallback
 - **Conversational Chat** — multi-turn agent with ReAct-style tool loop over `search_menu`, `create_order_draft`, `check_order_status`, `get_recommendations`; SSE streaming; in-memory session store with TTL eviction
+- **Intent classification** — LoRA adapter on `Qwen2.5-0.5B-Instruct` with a few-shot `LlmClient` fallback when no adapter is loaded
+- **Observability** — OpenTelemetry spans on every LLM call (tokens, cost, latency, cache hit); 5-min TTL+LRU cache on `parse_order` / `search`; admin-only `GET /api/ai/stats` aggregator
+- **Evaluation harness v2** — 130 labelled cases across search / recommend / parse / chat; `python -m fos_ai.eval.run --suite all` produces a Markdown report; CI gate runs the suite on every PR
 
 ### Legacy CLI (fos_cli)
 - Interactive console with menus, order management, admin panel
@@ -65,10 +79,13 @@ Client (curl / Postman / web UI)
 ### Technical Highlights
 - **Dual LLM provider** — Anthropic SDK + OpenAI API behind a unified `LlmClient` Protocol
 - **Raw PyTorch embeddings** — mean-pooling + L2-normalization, no `sentence-transformers` wrapper
+- **Two-stage retrieval** — BM25 + dense + RRF fusion (k=60) as the first stage, `bge-reranker-base` cross-encoder as the optional second stage
+- **Observability** — OTel spans with `gen_ai.*` attributes, a per-model cost table, and a cache hit-rate aggregator exposed via admin-only `GET /api/ai/stats`
+- **LoRA fine-tuning pipeline** — 9-class intent classifier with a deterministic data generator (500 bilingual samples) and a hyperparameter sweep (r=4 / 8 / 16 configs)
 - **Microservice architecture** — C++ gateway + Python ML service, separate failure domains
 - **Prepared statements** — `mysql_stmt_*` for SQL injection prevention
 - **JWT auth** — HS256 tokens, configurable TTL
-- **208 tests** — 101 GoogleTest (C++) + 107 pytest (Python) + 4 quality-gated eval cases (Hit@5 ≥ 0.80, MRR ≥ 0.60)
+- **Test counts** — 219 pytest (+ 3 LoRA-gated skips) + 101 ctest + 4 eval suites covering 130 labelled cases (Hit@5, MRR, nDCG, field-F1, LLM-as-judge)
 
 ## Prerequisites
 
@@ -100,10 +117,63 @@ ctest --output-on-failure   # 83 tests
 
 ```bash
 cd ai_service
-uv sync                     # install dependencies
-uv run pytest tests/ -q           # 107 unit tests
-uv run pytest eval/ -m eval -s    # 4 quality-gated eval cases (Hit@5, MRR)
+uv sync                           # install runtime dependencies
+uv run pytest tests/ -q           # 219 passed, 3 skipped (LoRA-gated)
+uv run pytest eval/ -m eval -s    # 4 quality-gated eval suites (130 cases)
 ```
+
+Optional — install the heavier training extras (peft, trl, accelerate, datasets)
+when you intend to train the LoRA intent classifier:
+
+```bash
+uv sync --extra training
+```
+
+See `ai_service/training/fos_ai_training/intent/model_card.md` for the full LoRA
+training recipe, dataset details, and hyperparameter sweep configs.
+
+### 3a. Vector store (Qdrant) — required for hybrid search
+
+```bash
+docker compose up -d qdrant       # brings up Qdrant on :6333
+export QDRANT_URL=http://localhost:6333
+
+cd ai_service
+uv run python scripts/ingest_menu_to_qdrant.py   # upsert menu_items collection
+```
+
+The ingest script reads the menu from MySQL, encodes each item with the
+multilingual MiniLM embedder, and upserts the vectors into the `menu_items`
+collection. Rerun it whenever the menu changes.
+
+### 3b. Optional — enable the cross-encoder reranker
+
+```bash
+export RERANK_ENABLED=true        # default false; enables bge-reranker-base
+```
+
+The first request downloads the ~280 MB `BAAI/bge-reranker-base` model and
+caches it in `~/.cache/huggingface`. Subsequent calls run locally on CPU.
+
+### 3c. Optional — run the full evaluation harness
+
+```bash
+cd ai_service
+uv run python -m fos_ai.eval.run --suite all
+```
+
+This produces a Markdown report at `eval/reports/YYYY-MM-DD.md` covering the
+search / recommend / parse / chat suites (130 labelled cases total).
+
+### 3d. Optional — enable OpenTelemetry tracing
+
+```bash
+export OTLP_ENDPOINT=http://localhost:4317    # e.g. Jaeger OTLP receiver
+```
+
+When unset, spans are emitted to stdout. Every LLM call is wrapped by
+`@trace_llm_call` and annotated with `gen_ai.*` attributes (provider, model,
+input / output tokens, latency, computed USD cost, cache hit).
 
 ### 4. Configure
 
