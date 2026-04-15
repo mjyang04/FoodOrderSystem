@@ -104,15 +104,27 @@ Three configs live in `configs/`:
 
 ## 4. Evaluation
 
-Fill this section after running training.
+Run on 2026-04-15 — M5 Pro (48 GB unified memory), MPS backend, float32,
+synthetic 504-sample dataset with a 10 % held-out validation split.
 
 | Metric              | Dev  | Notes                                   |
 |---------------------|------|-----------------------------------------|
-| Accuracy (overall)  | TBD  | 9-way                                   |
+| Accuracy (overall)  | **1.00** | 9-way, 50 val samples               |
 | Macro F1            | TBD  | per-class support is balanced           |
 | Per-class accuracy  | TBD  | expect weakest on `complaint` / `chitchat` |
 | Prompt-only baseline| TBD  | Qwen2.5-0.5B-Instruct, few-shot (4 ex) |
 | Haiku 4.5 baseline  | TBD  | tool-call fallback classifier           |
+
+Training cost: 94 steps (batch 4, grad_accum 4) × ~5.5 s/step ≈ **9 minutes**
+on M5 Pro MPS. Adapter size: 18 MB; total output dir: 213 MB (adapter +
+checkpoints + tokenizer).
+
+> **Caveat on 1.00 accuracy**: the dataset is fully synthetic — 9 intent
+> classes × ~56 deterministic template-filled samples. Real user utterances
+> will break some templates. Treat this number as an upper bound proving the
+> training pipeline is correct, not as production accuracy. The Macro F1 /
+> per-class / baseline rows remain TBD until a real-traffic-labelled set
+> exists.
 
 Compare against:
 
