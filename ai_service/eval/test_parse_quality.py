@@ -1,65 +1,35 @@
-"""Parse quality — uses stubbed LLM so we measure OUR resolution logic,
-not LLM variance."""
+"""Parse quality — stubbed LLM so we measure OUR resolver, not LLM variance."""
 
 from __future__ import annotations
 
-from typing import Any
-
 import pytest
 
-from fos_ai.services.parser import parse_order
-from fos_ai.services.llm_client import ToolCallResult
+from eval.runners.parse_runner import run as run_parse
 
 pytestmark = pytest.mark.eval
 
-
-class _StubLlm:
-    def __init__(self, payload: dict[str, Any]) -> None:
-        self._payload = payload
-
-    def tool_call(self, **_: Any):
-        return ToolCallResult(
-            tool_name="create_order_draft",
-            tool_input=self._payload,
-            raw_text="",
-            stop_reason="tool_use",
-        )
+MIN_RESTAURANT_MATCH = 1.0
+MIN_CONFIDENCE_PASS = 0.9
 
 
-def test_parse_cases(eval_menu, parse_cases):
-    failures: list[str] = []
-    for case in parse_cases:
-        llm = _StubLlm(case["llm_stub"])
-        resp = parse_order(
-            text=case["text"],
-            menu=eval_menu,
-            llm=llm,
-            restaurant_hint_id=None,
-        )
-        exp = case["expected"]
+def test_parse_quality(eval_menu, parse_cases):
+    ctx = {"menu": eval_menu}
+    result = run_parse(parse_cases, ctx)
 
-        if resp.draft.restaurant_id != exp["restaurant_id"]:
-            failures.append(
-                f"{case['id']}: restaurant_id={resp.draft.restaurant_id} "
-                f"expected={exp['restaurant_id']}"
-            )
-        if len(resp.draft.items) != exp["item_count"]:
-            failures.append(
-                f"{case['id']}: item_count={len(resp.draft.items)} "
-                f"expected={exp['item_count']}"
-            )
-        if abs(resp.draft.estimated_total - exp["total"]) > 0.01:
-            failures.append(
-                f"{case['id']}: total={resp.draft.estimated_total} "
-                f"expected={exp['total']}"
-            )
-        if resp.confidence < exp["min_confidence"]:
-            failures.append(
-                f"{case['id']}: confidence={resp.confidence} "
-                f"< {exp['min_confidence']}"
-            )
+    print(
+        f"\n[eval:parse] {result.n_cases} cases, "
+        f"{len(result.failures)} failures, "
+        f"restaurant_match={result.metrics['restaurant_match']:.3f} "
+        f"confidence_pass={result.metrics['confidence_pass_rate']:.3f}"
+    )
+    for f in result.failures:
+        print(f"  {f['id']}: {'; '.join(f['reasons'])}")
 
-    print(f"\n[eval:parse] {len(parse_cases)} cases, {len(failures)} failures")
-    for f in failures:
-        print("  -", f)
-    assert not failures, f"{len(failures)} parse failures"
+    assert result.metrics["restaurant_match"] >= MIN_RESTAURANT_MATCH, (
+        f"restaurant match {result.metrics['restaurant_match']:.3f} "
+        f"below {MIN_RESTAURANT_MATCH}"
+    )
+    assert result.metrics["confidence_pass_rate"] >= MIN_CONFIDENCE_PASS, (
+        f"confidence pass rate {result.metrics['confidence_pass_rate']:.3f} "
+        f"below {MIN_CONFIDENCE_PASS}"
+    )

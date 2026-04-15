@@ -393,3 +393,6 @@ ai_service/.pytest_cache/
 __pycache__/
 *.pyc
 *.pyo
+
+# Eval reports — generated markdown; keep directory via .gitkeep
+ai_service/eval/reports/*.md

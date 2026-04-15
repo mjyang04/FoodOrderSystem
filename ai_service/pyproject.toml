@@ -36,3 +36,5 @@ testpaths = ["tests"]
 markers = [
     "eval: quality evaluation against labelled datasets (run with `pytest eval/ -m eval`)",
 ]
+# ``eval/`` is intentionally outside ``testpaths`` so unit runs stay fast;
+# invoke explicitly: ``pytest eval/ -m eval``.
