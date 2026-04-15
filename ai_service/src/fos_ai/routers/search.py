@@ -19,7 +19,7 @@ def search_menu(
     limit: int = Query(10, ge=1, le=20),
 ) -> SearchResponse:
     """Semantic search over the menu corpus."""
-    from fos_ai.deps import get_corpus, get_embedder, get_vector_store
+    from fos_ai.deps import get_corpus, get_embedder, get_reranker, get_vector_store
 
     corpus = get_corpus()
     if not corpus.ready:
@@ -27,6 +27,7 @@ def search_menu(
 
     embedder = get_embedder()
     vector_store = get_vector_store()
+    reranker = get_reranker()
 
     from fos_ai.services.search import search
 
@@ -36,6 +37,7 @@ def search_menu(
         embedder=embedder,
         limit=limit,
         vector_store=vector_store,
+        reranker=reranker,
     )
 
     return SearchResponse(query=q, results=results, count=len(results))

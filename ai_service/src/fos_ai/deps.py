@@ -8,6 +8,7 @@ from typing import Any
 from fos_ai.config import Settings
 from fos_ai.ml.corpus import MenuCorpus
 from fos_ai.ml.embedding import Embedder
+from fos_ai.ml.reranker import Reranker
 from fos_ai.ml.vector_store import VectorStore
 from fos_ai.schemas import FoodMeta
 from fos_ai.services.llm_client import LlmClient
@@ -25,6 +26,7 @@ _embedder: Embedder | None = None
 _corpus: MenuCorpus = MenuCorpus()
 _session_store: SessionStore = SessionStore()
 _vector_store: VectorStore | None = None
+_reranker: Reranker | None = None
 
 
 def init_settings(settings: Settings) -> None:
@@ -67,6 +69,11 @@ def init_vector_store(store: VectorStore | None) -> None:
     _vector_store = store
 
 
+def init_reranker(reranker: Reranker | None) -> None:
+    global _reranker
+    _reranker = reranker
+
+
 # ---- getters ----
 
 def get_settings() -> Settings:
@@ -104,3 +111,8 @@ def get_session_store() -> SessionStore:
 def get_vector_store() -> VectorStore | None:
     """Return the active vector store, or ``None`` if hybrid search is disabled."""
     return _vector_store
+
+
+def get_reranker() -> Reranker | None:
+    """Return the active cross-encoder reranker, or ``None`` when disabled."""
+    return _reranker

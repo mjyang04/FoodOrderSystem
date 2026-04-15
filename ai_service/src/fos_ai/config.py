@@ -39,6 +39,10 @@ class Settings(BaseSettings):
     # --- Vector store (Qdrant) ---
     qdrant_url: str | None = None  # e.g. "http://localhost:6333"; None disables hybrid search
 
+    # --- Reranker (CrossEncoder) ---
+    rerank_enabled: bool = False
+    rerank_model: str = "BAAI/bge-reranker-base"
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
     def validate_llm(self) -> None:

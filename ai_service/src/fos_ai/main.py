@@ -93,6 +93,22 @@ async def lifespan(app: FastAPI):
     else:
         logger.info("Hybrid search disabled — QDRANT_URL not set or corpus empty")
 
+    # Wire cross-encoder reranker (optional — disabled unless RERANK_ENABLED=true)
+    if settings.rerank_enabled:
+        try:
+            from fos_ai.ml.reranker import Reranker
+
+            reranker = Reranker(model_name=settings.rerank_model)
+            deps.init_reranker(reranker)
+            logger.info("Reranker configured (lazy-loaded): %s", settings.rerank_model)
+        except Exception:
+            logger.warning(
+                "Reranker init failed — two-stage retrieval disabled", exc_info=True
+            )
+            deps.init_reranker(None)
+    else:
+        logger.info("Reranker disabled — RERANK_ENABLED not set")
+
     # Create LLM client
     try:
         from fos_ai.services.llm_client import create_llm_client
