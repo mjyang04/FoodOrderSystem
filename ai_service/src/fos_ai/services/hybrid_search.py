@@ -21,6 +21,7 @@ from rank_bm25 import BM25Okapi
 
 from fos_ai.ml.corpus import MenuCorpus
 from fos_ai.ml.embedding import Embedder
+from fos_ai.ml.reranker import Reranker, RerankerUnavailable
 from fos_ai.ml.vector_store import VectorStore
 from fos_ai.schemas import SearchResult
 
@@ -30,6 +31,7 @@ _RRF_K = 60
 _CANDIDATE_POOL = 50  # Top-N from each retriever before fusion
 _DEFAULT_LIMIT = 10
 _MAX_LIMIT = 20
+_DEFAULT_RERANK_CANDIDATES = 50
 _COLLECTION = "menu_items"
 
 _TOKEN_RE = re.compile(r"\W+")
@@ -147,14 +149,59 @@ def _to_results(
     return results
 
 
+def _apply_reranker(
+    query: str,
+    fused: list[tuple[int, float]],
+    corpus: MenuCorpus,
+    reranker: Reranker,
+    rerank_candidates: int,
+    limit: int,
+) -> list[tuple[int, float]] | None:
+    """Rerank the top-``rerank_candidates`` of ``fused`` and return top-``limit``.
+
+    Returns ``None`` on reranker failure so the caller can fall back to
+    the RRF ranking unchanged.
+    """
+    pool = fused[:rerank_candidates]
+    by_id = {item.food_id: item for item in corpus.items}
+
+    pairs: list[tuple[int, str]] = []
+    for food_id, _score in pool:
+        meta = by_id.get(food_id)
+        if meta is None:
+            continue
+        text = f"{meta.food_name} {meta.description}".strip()
+        pairs.append((food_id, text))
+
+    if not pairs:
+        return fused[:limit]
+
+    try:
+        return reranker.rerank(query, pairs, top_k=limit)
+    except RerankerUnavailable:
+        logger.warning(
+            "Reranker unavailable — falling back to RRF top-%d",
+            limit,
+            exc_info=True,
+        )
+        return None
+
+
 def hybrid_search(
     query: str,
     corpus: MenuCorpus,
     embedder: Embedder,
     vector_store: VectorStore | None,
     limit: int = _DEFAULT_LIMIT,
+    reranker: Reranker | None = None,
+    rerank_candidates: int = _DEFAULT_RERANK_CANDIDATES,
 ) -> list[SearchResult]:
     """Run BM25 + dense + RRF and return top-``limit`` ``SearchResult``.
+
+    Two-stage when ``reranker`` is provided: compute hybrid RRF over the
+    top-``rerank_candidates`` candidates, then rerank to ``limit``. When
+    the reranker raises ``RerankerUnavailable`` (e.g. model not loaded),
+    we log a warning and return the RRF top-``limit`` unchanged.
 
     If ``vector_store`` is ``None`` or the dense lookup raises, we fall
     back to BM25-only results. Never raises on retrieval errors.
@@ -163,9 +210,13 @@ def hybrid_search(
         return []
 
     limit = max(1, min(limit, _MAX_LIMIT))
+    rerank_candidates = max(limit, rerank_candidates)
     bundle = _build_bm25(corpus)
 
-    bm25_ranking = _bm25_rank(query, bundle, top_n=_CANDIDATE_POOL)
+    # Pull a large enough candidate pool for reranking if requested.
+    pool_size = max(_CANDIDATE_POOL, rerank_candidates) if reranker else _CANDIDATE_POOL
+
+    bm25_ranking = _bm25_rank(query, bundle, top_n=pool_size)
 
     rankings: list[list[tuple[int, float]]] = []
     if bm25_ranking:
@@ -175,7 +226,7 @@ def hybrid_search(
     if vector_store is not None:
         try:
             if vector_store.count(_COLLECTION) > 0:
-                dense_ranking = _dense_rank(query, embedder, vector_store, top_n=_CANDIDATE_POOL)
+                dense_ranking = _dense_rank(query, embedder, vector_store, top_n=pool_size)
         except Exception:
             logger.warning("Dense retrieval failed — falling back to BM25 only", exc_info=True)
             dense_ranking = []
@@ -186,9 +237,18 @@ def hybrid_search(
     if not rankings:
         return []
 
-    if len(rankings) == 1:
-        # BM25-only fallback path
-        return _to_results(rankings[0], corpus, limit)
+    fused = rankings[0] if len(rankings) == 1 else _rrf_fuse(rankings)
 
-    fused = _rrf_fuse(rankings)
+    if reranker is not None:
+        reranked = _apply_reranker(
+            query=query,
+            fused=fused,
+            corpus=corpus,
+            reranker=reranker,
+            rerank_candidates=rerank_candidates,
+            limit=limit,
+        )
+        if reranked is not None:
+            return _to_results(reranked, corpus, limit)
+
     return _to_results(fused, corpus, limit)

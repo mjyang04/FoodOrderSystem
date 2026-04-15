@@ -12,6 +12,7 @@ import torch
 
 from fos_ai.ml.corpus import MenuCorpus
 from fos_ai.ml.embedding import Embedder
+from fos_ai.ml.reranker import Reranker
 from fos_ai.ml.vector_store import VectorStore
 from fos_ai.schemas import SearchResult
 
@@ -27,6 +28,7 @@ def search(
     embedder: Embedder,
     limit: int = _DEFAULT_LIMIT,
     vector_store: VectorStore | None = None,
+    reranker: Reranker | None = None,
 ) -> list[SearchResult]:
     """Search the menu corpus and return top-``limit`` ``SearchResult``.
 
@@ -39,6 +41,8 @@ def search(
             (and the collection is populated) the call is routed through
             ``hybrid_search`` for BM25 + dense + RRF fusion. When ``None``
             we use the cosine-only fallback.
+        reranker: Optional cross-encoder reranker. Only used when
+            ``vector_store`` is also provided (two-stage retrieval).
 
     Returns:
         Sorted list of ``SearchResult`` (descending by score).
@@ -55,6 +59,7 @@ def search(
             embedder=embedder,
             vector_store=vector_store,
             limit=limit,
+            reranker=reranker,
         )
 
     return _cosine_search(query, corpus, embedder, limit)
