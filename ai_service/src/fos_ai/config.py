@@ -36,6 +36,9 @@ class Settings(BaseSettings):
     ai_bind_host: str = "127.0.0.1"
     ai_bind_port: int = 8000
 
+    # --- Vector store (Qdrant) ---
+    qdrant_url: str | None = None  # e.g. "http://localhost:6333"; None disables hybrid search
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
     def validate_llm(self) -> None:

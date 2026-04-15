@@ -49,6 +49,8 @@ async def lifespan(app: FastAPI):
         menu = []
 
     # Build embedding corpus
+    corpus = None
+    embedder = None
     try:
         from fos_ai.ml.embedding import Embedder
         from fos_ai.ml.corpus import build_corpus
@@ -64,6 +66,32 @@ async def lifespan(app: FastAPI):
             logger.warning("Skipping corpus build — no menu items")
     except Exception:
         logger.warning("Embedder/corpus init failed — search/recommend degraded", exc_info=True)
+
+    # Wire Qdrant vector store (optional — disabled if QDRANT_URL is unset)
+    if settings.qdrant_url and corpus is not None and corpus.ready and embedder is not None:
+        try:
+            from fos_ai.ml.vector_store import VectorStore
+
+            store = VectorStore(url=settings.qdrant_url)
+            store.ensure_collection("menu_items", dim=embedder.dim)
+            points: list[tuple[int, list[float], dict]] = []
+            for idx, item in enumerate(corpus.items):
+                payload = {
+                    "food_id": item.food_id,
+                    "food_name": item.food_name,
+                    "restaurant_id": item.restaurant_id,
+                    "restaurant_name": item.restaurant_name,
+                    "unit_price": item.unit_price,
+                }
+                points.append((item.food_id, corpus.tensor[idx].tolist(), payload))
+            store.upsert("menu_items", points)
+            deps.init_vector_store(store)
+            logger.info("Qdrant ready — %d points upserted to menu_items", len(points))
+        except Exception:
+            logger.warning("Qdrant init failed — falling back to cosine search", exc_info=True)
+            deps.init_vector_store(None)
+    else:
+        logger.info("Hybrid search disabled — QDRANT_URL not set or corpus empty")
 
     # Create LLM client
     try:

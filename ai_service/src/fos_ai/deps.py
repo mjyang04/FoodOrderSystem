@@ -8,6 +8,7 @@ from typing import Any
 from fos_ai.config import Settings
 from fos_ai.ml.corpus import MenuCorpus
 from fos_ai.ml.embedding import Embedder
+from fos_ai.ml.vector_store import VectorStore
 from fos_ai.schemas import FoodMeta
 from fos_ai.services.llm_client import LlmClient
 from fos_ai.services.session_store import SessionStore
@@ -23,6 +24,7 @@ _db_conn: Any = None
 _embedder: Embedder | None = None
 _corpus: MenuCorpus = MenuCorpus()
 _session_store: SessionStore = SessionStore()
+_vector_store: VectorStore | None = None
 
 
 def init_settings(settings: Settings) -> None:
@@ -60,6 +62,11 @@ def init_session_store(store: SessionStore) -> None:
     _session_store = store
 
 
+def init_vector_store(store: VectorStore | None) -> None:
+    global _vector_store
+    _vector_store = store
+
+
 # ---- getters ----
 
 def get_settings() -> Settings:
@@ -92,3 +99,8 @@ def get_corpus() -> MenuCorpus:
 
 def get_session_store() -> SessionStore:
     return _session_store
+
+
+def get_vector_store() -> VectorStore | None:
+    """Return the active vector store, or ``None`` if hybrid search is disabled."""
+    return _vector_store
