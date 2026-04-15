@@ -1,0 +1,9 @@
+# LoRA sweep — rank 8 (default, recommended starting point)
+# Balances capacity vs. adapter size for the 9-class task.
+r: 8
+lora_alpha: 16
+lora_dropout: 0.05
+lr: 2.0e-4
+epochs: 3
+batch_size: 4
+grad_accum: 4

@@ -1,0 +1,9 @@
+# LoRA sweep — rank 16
+# Higher-capacity adapter; watch for overfitting on the 500-sample set.
+r: 16
+lora_alpha: 32
+lora_dropout: 0.05
+lr: 1.0e-4
+epochs: 3
+batch_size: 4
+grad_accum: 4
