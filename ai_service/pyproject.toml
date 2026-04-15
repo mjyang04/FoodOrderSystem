@@ -30,3 +30,6 @@ build-backend = "hatchling.build"
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = [
+    "eval: quality evaluation against labelled datasets (run with `pytest eval/ -m eval`)",
+]
