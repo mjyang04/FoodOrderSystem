@@ -10,6 +10,7 @@ from fos_ai.ml.corpus import MenuCorpus
 from fos_ai.ml.embedding import Embedder
 from fos_ai.schemas import FoodMeta
 from fos_ai.services.llm_client import LlmClient
+from fos_ai.services.session_store import SessionStore
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +22,7 @@ _menu: list[FoodMeta] = []
 _db_conn: Any = None
 _embedder: Embedder | None = None
 _corpus: MenuCorpus = MenuCorpus()
+_session_store: SessionStore = SessionStore()
 
 
 def init_settings(settings: Settings) -> None:
@@ -53,6 +55,11 @@ def init_corpus(corpus: MenuCorpus) -> None:
     _corpus = corpus
 
 
+def init_session_store(store: SessionStore) -> None:
+    global _session_store
+    _session_store = store
+
+
 # ---- getters ----
 
 def get_settings() -> Settings:
@@ -81,3 +88,7 @@ def get_embedder() -> Embedder:
 
 def get_corpus() -> MenuCorpus:
     return _corpus
+
+
+def get_session_store() -> SessionStore:
+    return _session_store

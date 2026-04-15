@@ -9,7 +9,7 @@ from fastapi import FastAPI
 
 from fos_ai.config import Settings
 from fos_ai import deps
-from fos_ai.routers import health, parse, recommend, search
+from fos_ai.routers import chat, health, parse, recommend, search
 
 logging.basicConfig(
     level=logging.INFO,
@@ -110,3 +110,4 @@ app.include_router(health.router)
 app.include_router(parse.router)
 app.include_router(search.router)
 app.include_router(recommend.router)
+app.include_router(chat.router)
