@@ -1,6 +1,6 @@
 # Sprint 5 — Conversational Chat Agent + Order Status + Eval Harness
 
-**Status:** in-progress
+**Status:** DONE (2026-04-15)
 **Created:** 2026-04-12
 **Branch:** `feature/rest-api`
 **Entry gate:** Sprint 4 closed on 2026-04-12 (8 commits, 60 pytest + 83 ctest green).

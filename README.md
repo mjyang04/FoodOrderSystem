@@ -28,8 +28,11 @@ Client (curl / Postman / web UI)
 |  POST /ai/parse-order -> parser.py -> LLM     |
 |  GET  /ai/search      -> search.py -> PyTorch |
 |  GET  /ai/recommend   -> recommender.py       |
+|  POST /ai/chat        -> chat_engine.py       |
+|       ReAct loop, 4 tools, SSE streaming      |
 |                                                |
-|  Startup: load MiniLM model, encode menu      |
+|  Startup: load MiniLM model, encode menu,     |
+|           init SessionStore (30-min TTL)      |
 +-----------------------------------------------+
         |   read-only SELECT
         v
@@ -53,6 +56,7 @@ Client (curl / Postman / web UI)
 - **Parse Order** — natural language to structured order draft via LLM tool-calling (Anthropic/OpenAI)
 - **Semantic Search** — encode query with MiniLM, cosine similarity against pre-encoded menu corpus
 - **Recommendations** — content-based (user profile from order history) with cold-start popularity fallback
+- **Conversational Chat** — multi-turn agent with ReAct-style tool loop over `search_menu`, `create_order_draft`, `check_order_status`, `get_recommendations`; SSE streaming; in-memory session store with TTL eviction
 
 ### Legacy CLI (fos_cli)
 - Interactive console with menus, order management, admin panel
@@ -64,7 +68,7 @@ Client (curl / Postman / web UI)
 - **Microservice architecture** — C++ gateway + Python ML service, separate failure domains
 - **Prepared statements** — `mysql_stmt_*` for SQL injection prevention
 - **JWT auth** — HS256 tokens, configurable TTL
-- **143 tests** — 83 GoogleTest (C++) + 60 pytest (Python)
+- **208 tests** — 101 GoogleTest (C++) + 107 pytest (Python) + 4 quality-gated eval cases (Hit@5 ≥ 0.80, MRR ≥ 0.60)
 
 ## Prerequisites
 
@@ -97,7 +101,8 @@ ctest --output-on-failure   # 83 tests
 ```bash
 cd ai_service
 uv sync                     # install dependencies
-uv run pytest tests/ -q     # 60 tests (loads MiniLM model on first run, ~420 MB)
+uv run pytest tests/ -q           # 107 unit tests
+uv run pytest eval/ -m eval -s    # 4 quality-gated eval cases (Hit@5, MRR)
 ```
 
 ### 4. Configure
