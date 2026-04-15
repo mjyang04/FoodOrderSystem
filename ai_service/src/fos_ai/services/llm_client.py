@@ -11,6 +11,8 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any, Iterator, Protocol
 
+from fos_ai.obs.tracing import trace_llm_call
+
 logger = logging.getLogger(__name__)
 
 
@@ -123,6 +125,7 @@ class AnthropicLlmClient:
         self._model = model
         logger.info("AnthropicLlmClient ready — model=%s", model)
 
+    @trace_llm_call(provider="anthropic")
     def tool_call(
         self,
         *,
@@ -159,6 +162,7 @@ class AnthropicLlmClient:
             stop_reason=resp.stop_reason or "",
         )
 
+    @trace_llm_call(provider="anthropic")
     def messages(
         self,
         *,
@@ -187,6 +191,7 @@ class AnthropicLlmClient:
                 })
         return MessagesResult(content=content, stop_reason=resp.stop_reason or "")
 
+    @trace_llm_call(provider="anthropic")
     def messages_stream(
         self,
         *,
@@ -252,6 +257,7 @@ class OpenAILlmClient:
         self._model = model
         logger.info("OpenAILlmClient ready — model=%s", model)
 
+    @trace_llm_call(provider="openai")
     def tool_call(
         self,
         *,
@@ -295,6 +301,7 @@ class OpenAILlmClient:
             stop_reason=choice.finish_reason or "",
         )
 
+    @trace_llm_call(provider="openai")
     def messages(
         self,
         *,
@@ -333,6 +340,7 @@ class OpenAILlmClient:
         stop_reason = _openai_finish_reason_to_anthropic(choice.finish_reason or "")
         return MessagesResult(content=content, stop_reason=stop_reason)
 
+    @trace_llm_call(provider="openai")
     def messages_stream(
         self,
         *,

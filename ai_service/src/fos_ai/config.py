@@ -49,6 +49,13 @@ class Settings(BaseSettings):
     intent_adapter_path: str | None = None
     intent_base_model: str = "Qwen/Qwen2.5-0.5B-Instruct"
 
+    # --- Observability (Sprint 6 Phase 5) ---
+    # When set, spans are exported to the given OTLP/HTTP endpoint
+    # (e.g. "http://localhost:4318/v1/traces" for a local Jaeger docker).
+    # Leave unset to keep console-only tracing.
+    otlp_endpoint: str | None = None
+    tracing_console: bool = True
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
     def validate_llm(self) -> None:

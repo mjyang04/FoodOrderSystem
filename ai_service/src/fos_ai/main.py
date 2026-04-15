@@ -9,6 +9,7 @@ from fastapi import FastAPI
 
 from fos_ai.config import Settings
 from fos_ai import deps
+from fos_ai.obs import init_tracing
 from fos_ai.routers import chat, health, intent, parse, recommend, search
 
 logging.basicConfig(
@@ -24,6 +25,14 @@ async def lifespan(app: FastAPI):
     settings = Settings()
     settings.validate_llm()
     deps.init_settings(settings)
+
+    # Sprint 6 Phase 5: install tracer before any LLM client is built so every
+    # call is captured. Safe to call multiple times — guarded internally.
+    init_tracing(
+        service_name="fos_ai",
+        otlp_endpoint=settings.otlp_endpoint,
+        console=settings.tracing_console,
+    )
 
     # Connect to MySQL and load menu
     try:
@@ -160,6 +169,15 @@ app.include_router(search.router)
 app.include_router(recommend.router)
 app.include_router(chat.router)
 app.include_router(intent.router)
+
+# Stats router is wired conditionally so Phase 5 commit split stays buildable
+# at each step — the router file is introduced in a later commit.
+try:
+    from fos_ai.routers import stats as _stats_router  # noqa: WPS433
+
+    app.include_router(_stats_router.router)
+except ImportError:
+    pass
 
 
 def _wire_intent_classifier(settings: Settings, llm) -> None:
