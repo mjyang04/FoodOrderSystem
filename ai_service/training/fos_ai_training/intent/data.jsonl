@@ -1,0 +1,504 @@
+{"text": "list all dishes at Ramen House", "label": "menu_browse"}
+{"text": "please cancel my last order", "label": "cancel"}
+{"text": "我的订单1024到哪儿了", "label": "status_check"}
+{"text": "place an order for kung pao chicken from 意式餐厅", "label": "order"}
+{"text": "Sushi Bar都卖啥", "label": "menu_browse"}
+{"text": "any dan dan noodles at Cantonese Kitchen?", "label": "search"}
+{"text": "嗯嗯", "label": "chitchat"}
+{"text": "you are helpful", "label": "chitchat"}
+{"text": "add roast duck to my cart and checkout", "label": "order"}
+{"text": "999号订单送错了", "label": "complaint"}
+{"text": "Ramen House都卖啥", "label": "menu_browse"}
+{"text": "track my latest order", "label": "status_check"}
+{"text": "show me the menu of Ramen House", "label": "menu_browse"}
+{"text": "今晚吃啥好呢？", "label": "recommend"}
+{"text": "you are helpful", "label": "chitchat"}
+{"text": "track my latest order", "label": "status_check"}
+{"text": "hello", "label": "chitchat"}
+{"text": "recommend something light", "label": "recommend"}
+{"text": "意式餐厅都卖啥", "label": "menu_browse"}
+{"text": "suggest a 粤菜 dish for me", "label": "recommend"}
+{"text": "取消订单7", "label": "cancel"}
+{"text": "recommend something healthy", "label": "recommend"}
+{"text": "给316号订单打四星分", "label": "rating"}
+{"text": "hi", "label": "chitchat"}
+{"text": "这次体验不错，打四星分", "label": "rating"}
+{"text": "search for fried rice near me", "label": "search"}
+{"text": "suggest a 日料 dish for me", "label": "recommend"}
+{"text": "pasta送来的时候是凉的", "label": "complaint"}
+{"text": "帮我把刚才下的单取消了", "label": "cancel"}
+{"text": "has order 88 been delivered yet", "label": "status_check"}
+{"text": "the delivery person was rude", "label": "complaint"}
+{"text": "88号订单状态是什么", "label": "status_check"}
+{"text": "place an order for pizza from 川味轩", "label": "order"}
+{"text": "lol ok", "label": "chitchat"}
+{"text": "give me a popular 担担面 pick", "label": "recommend"}
+{"text": "hi, how are you?", "label": "chitchat"}
+{"text": "suggest a Korean dish for me", "label": "recommend"}
+{"text": "999号订单送错了", "label": "complaint"}
+{"text": "I want to order two dan dan noodles", "label": "order"}
+{"text": "track my latest order", "label": "status_check"}
+{"text": "我的订单42到哪儿了", "label": "status_check"}
+{"text": "is my delivery on the way", "label": "status_check"}
+{"text": "2048号订单送错了", "label": "complaint"}
+{"text": "is there fried rice available", "label": "search"}
+{"text": "来一份麻婆豆腐", "label": "order"}
+{"text": "帮我找一下roast duck", "label": "search"}
+{"text": "look up mapo tofu", "label": "search"}
+{"text": "abort the order I just placed", "label": "cancel"}
+{"text": "abort the order I just placed", "label": "cancel"}
+{"text": "不想要了，取消999", "label": "cancel"}
+{"text": "你好, how are you?", "label": "chitchat"}
+{"text": "look up dim sum", "label": "search"}
+{"text": "这次体验不错，打五星分", "label": "rating"}
+{"text": "I want to leave a 4-star review on order 42", "label": "rating"}
+{"text": "我的订单7到哪儿了", "label": "status_check"}
+{"text": "Sichuan Delight都卖啥", "label": "menu_browse"}
+{"text": "我要点意式餐厅的宫保鸡丁", "label": "order"}
+{"text": "给我来点healthy的推荐", "label": "recommend"}
+{"text": "I don't know what to eat, help me choose", "label": "recommend"}
+{"text": "帮我找一下pasta", "label": "search"}
+{"text": "what's the status of order 316?", "label": "status_check"}
+{"text": "推荐个川菜吧", "label": "recommend"}
+{"text": "外卖还有多久到", "label": "status_check"}
+{"text": "给我来点cheap的推荐", "label": "recommend"}
+{"text": "any 麻婆豆腐 at Ramen House?", "label": "search"}
+{"text": "what do you recommend for dinner?", "label": "recommend"}
+{"text": "帮我把刚才下的单取消了", "label": "cancel"}
+{"text": "the order is late and I'm upset", "label": "complaint"}
+{"text": "my roast duck arrived cold", "label": "complaint"}
+{"text": "有没有辣的dim sum", "label": "search"}
+{"text": "review my last order as 3 stars", "label": "rating"}
+{"text": "track my latest order", "label": "status_check"}
+{"text": "open the Korean menu", "label": "menu_browse"}
+{"text": "I want to order two 宫保鸡丁", "label": "order"}
+{"text": "嗯嗯", "label": "chitchat"}
+{"text": "谢啦", "label": "chitchat"}
+{"text": "open the Japanese menu", "label": "menu_browse"}
+{"text": "what should I eat tonight?", "label": "recommend"}
+{"text": "has order 2048 been delivered yet", "label": "status_check"}
+{"text": "browse 意式餐厅", "label": "menu_browse"}
+{"text": "when will my food arrive", "label": "status_check"}
+{"text": "suggest a 粤菜 dish for me", "label": "recommend"}
+{"text": "what does 粤膳轩 serve?", "label": "menu_browse"}
+{"text": "the order is late and I'm upset", "label": "complaint"}
+{"text": "谢啦", "label": "chitchat"}
+{"text": "Cantonese Kitchen都卖啥", "label": "menu_browse"}
+{"text": "browse 川味轩", "label": "menu_browse"}
+{"text": "when will my food arrive", "label": "status_check"}
+{"text": "any 宫保鸡丁 at 意式餐厅?", "label": "search"}
+{"text": "what should I eat tonight?", "label": "recommend"}
+{"text": "is there pizza available", "label": "search"}
+{"text": "submit a rating for 999", "label": "rating"}
+{"text": "what does Sushi Bar serve?", "label": "menu_browse"}
+{"text": "我要点Sichuan Delight的dan dan noodles", "label": "order"}
+{"text": "帮我找一下pasta", "label": "search"}
+{"text": "stop the delivery of 100", "label": "cancel"}
+{"text": "add 烤鸭 to my cart and checkout", "label": "order"}
+{"text": "外卖还有多久到", "label": "status_check"}
+{"text": "look up dan dan noodles", "label": "search"}
+{"text": "recommend something spicy", "label": "recommend"}
+{"text": "is my delivery on the way", "label": "status_check"}
+{"text": "review my last order as 五星 stars", "label": "rating"}
+{"text": "place an order for 烤鸭 from Sushi Bar", "label": "order"}
+{"text": "取消订单999", "label": "cancel"}
+{"text": "I want to order two fried rice", "label": "order"}
+{"text": "I don't know what to eat, help me choose", "label": "recommend"}
+{"text": "this is unacceptable service", "label": "complaint"}
+{"text": "review my last order as 3 stars", "label": "rating"}
+{"text": "recommend something 辣的", "label": "recommend"}
+{"text": "please cancel my last order", "label": "cancel"}
+{"text": "帮我下单两份ramen", "label": "order"}
+{"text": "给88号订单打五星分", "label": "rating"}
+{"text": "look up dan dan noodles", "label": "search"}
+{"text": "我要点Sichuan Delight的点心", "label": "order"}
+{"text": "where is my order?", "label": "status_check"}
+{"text": "帮我把刚才下的单取消了", "label": "cancel"}
+{"text": "浏览Italian餐厅", "label": "menu_browse"}
+{"text": "hello", "label": "chitchat"}
+{"text": "I want to cancel order 42", "label": "cancel"}
+{"text": "search for 担担面 near me", "label": "search"}
+{"text": "browse Sichuan Delight", "label": "menu_browse"}
+{"text": "stop the delivery of 316", "label": "cancel"}
+{"text": "order 点心 for delivery", "label": "order"}
+{"text": "please cancel my last order", "label": "cancel"}
+{"text": "hey，今天怎么样", "label": "chitchat"}
+{"text": "what's the status of order 2048?", "label": "status_check"}
+{"text": "what do you recommend for dinner?", "label": "recommend"}
+{"text": "推荐个Japanese吧", "label": "recommend"}
+{"text": "you are helpful", "label": "chitchat"}
+{"text": "place an order for fried rice from Cantonese Kitchen", "label": "order"}
+{"text": "what do you recommend for dinner?", "label": "recommend"}
+{"text": "give me a popular 宫保鸡丁 pick", "label": "recommend"}
+{"text": "this is unacceptable service", "label": "complaint"}
+{"text": "嗯嗯", "label": "chitchat"}
+{"text": "取消订单88", "label": "cancel"}
+{"text": "when will my food arrive", "label": "status_check"}
+{"text": "给88号订单打5分", "label": "rating"}
+{"text": "这次体验不错，打五星分", "label": "rating"}
+{"text": "what do you recommend for dinner?", "label": "recommend"}
+{"text": "get me one pizza and one sushi", "label": "order"}
+{"text": "hi，今天怎么样", "label": "chitchat"}
+{"text": "give me a popular dim sum pick", "label": "recommend"}
+{"text": "give 4 stars to Sushi Bar", "label": "rating"}
+{"text": "100号订单送错了", "label": "complaint"}
+{"text": "suggest a Thai dish for me", "label": "recommend"}
+{"text": "the delivery person was rude", "label": "complaint"}
+{"text": "rate order 88 3 stars", "label": "rating"}
+{"text": "where is my order?", "label": "status_check"}
+{"text": "看一下川味轩的菜单", "label": "menu_browse"}
+{"text": "my ramen arrived cold", "label": "complaint"}
+{"text": "外卖还有多久到", "label": "status_check"}
+{"text": "骑手态度特别差", "label": "complaint"}
+{"text": "谢啦", "label": "chitchat"}
+{"text": "这次体验不错，打4分", "label": "rating"}
+{"text": "the order is late and I'm upset", "label": "complaint"}
+{"text": "谢啦", "label": "chitchat"}
+{"text": "给我来点清淡的的推荐", "label": "recommend"}
+{"text": "rate order 88 5 stars", "label": "rating"}
+{"text": "the order is late and I'm upset", "label": "complaint"}
+{"text": "不想要了，取消7", "label": "cancel"}
+{"text": "what does Sushi Bar serve?", "label": "menu_browse"}
+{"text": "browse 意式餐厅", "label": "menu_browse"}
+{"text": "the sushi tasted bad, want a refund", "label": "complaint"}
+{"text": "来一份kung pao chicken", "label": "order"}
+{"text": "what does Sushi Bar serve?", "label": "menu_browse"}
+{"text": "place an order for mapo tofu from Sushi Bar", "label": "order"}
+{"text": "今晚吃啥好呢？", "label": "recommend"}
+{"text": "I want to leave a 3-star review on order 316", "label": "rating"}
+{"text": "show me the menu of La Dolce Vita", "label": "menu_browse"}
+{"text": "搜一下Korean的菜", "label": "search"}
+{"text": "give 5 stars to 意式餐厅", "label": "rating"}
+{"text": "给42号订单打4分", "label": "rating"}
+{"text": "2048号订单送错了", "label": "complaint"}
+{"text": "add pizza to my cart and checkout", "label": "order"}
+{"text": "you are helpful", "label": "chitchat"}
+{"text": "look up 担担面", "label": "search"}
+{"text": "any 宫保鸡丁 at Ramen House?", "label": "search"}
+{"text": "Cantonese Kitchen评个3星", "label": "rating"}
+{"text": "今晚吃啥好呢？", "label": "recommend"}
+{"text": "where is my order?", "label": "status_check"}
+{"text": "帮我找一下mapo tofu", "label": "search"}
+{"text": "Sichuan Delight评个四星星", "label": "rating"}
+{"text": "1024号订单送错了", "label": "complaint"}
+{"text": "see available dishes for Ramen House", "label": "menu_browse"}
+{"text": "今晚吃啥好呢？", "label": "recommend"}
+{"text": "has order 100 been delivered yet", "label": "status_check"}
+{"text": "abort the order I just placed", "label": "cancel"}
+{"text": "意式餐厅都卖啥", "label": "menu_browse"}
+{"text": "有没有便宜的mapo tofu", "label": "search"}
+{"text": "see available dishes for 粤膳轩", "label": "menu_browse"}
+{"text": "有没有便宜的dim sum", "label": "search"}
+{"text": "good morning", "label": "chitchat"}
+{"text": "hello, how are you?", "label": "chitchat"}
+{"text": "帮我找一下烤鸭", "label": "search"}
+{"text": "my dim sum arrived cold", "label": "complaint"}
+{"text": "get me one dim sum and one roast duck", "label": "order"}
+{"text": "帮我找一下roast duck", "label": "search"}
+{"text": "这次体验不错，打五星分", "label": "rating"}
+{"text": "I want to cancel order 42", "label": "cancel"}
+{"text": "search for kung pao chicken near me", "label": "search"}
+{"text": "外卖还有多久到", "label": "status_check"}
+{"text": "cancel the dim sum I ordered", "label": "cancel"}
+{"text": "open the Thai menu", "label": "menu_browse"}
+{"text": "cancel order 7", "label": "cancel"}
+{"text": "给1024号订单打五星分", "label": "rating"}
+{"text": "取消订单7", "label": "cancel"}
+{"text": "cancel the roast duck I ordered", "label": "cancel"}
+{"text": "order 1024 is wrong, I got the wrong dish", "label": "complaint"}
+{"text": "搜一下意餐的菜", "label": "search"}
+{"text": "I want to order two kung pao chicken", "label": "order"}
+{"text": "submit a rating for 100", "label": "rating"}
+{"text": "you are helpful", "label": "chitchat"}
+{"text": "帮我找一下fried rice", "label": "search"}
+{"text": "我要点La Dolce Vita的mapo tofu", "label": "order"}
+{"text": "取消订单316", "label": "cancel"}
+{"text": "谢啦", "label": "chitchat"}
+{"text": "what should I eat tonight?", "label": "recommend"}
+{"text": "thanks a lot!", "label": "chitchat"}
+{"text": "track my latest order", "label": "status_check"}
+{"text": "这次体验不错，打五星分", "label": "rating"}
+{"text": "any dim sum at Sichuan Delight?", "label": "search"}
+{"text": "I'll take the pizza", "label": "order"}
+{"text": "我要点Ramen House的麻婆豆腐", "label": "order"}
+{"text": "the 点心 tasted bad, want a refund", "label": "complaint"}
+{"text": "see available dishes for 意式餐厅", "label": "menu_browse"}
+{"text": "100号订单送错了", "label": "complaint"}
+{"text": "浏览Japanese餐厅", "label": "menu_browse"}
+{"text": "you are helpful", "label": "chitchat"}
+{"text": "thanks a lot!", "label": "chitchat"}
+{"text": "see available dishes for Cantonese Kitchen", "label": "menu_browse"}
+{"text": "show me 意餐 food under 50 dollars", "label": "search"}
+{"text": "find cheap 点心", "label": "search"}
+{"text": "rate order 316 五星 stars", "label": "rating"}
+{"text": "浏览Korean餐厅", "label": "menu_browse"}
+{"text": "is there fried rice available", "label": "search"}
+{"text": "推荐个意餐吧", "label": "recommend"}
+{"text": "place an order for 烤鸭 from La Dolce Vita", "label": "order"}
+{"text": "不想要了，取消100", "label": "cancel"}
+{"text": "give 3 stars to Sichuan Delight", "label": "rating"}
+{"text": "嗨", "label": "chitchat"}
+{"text": "2048号订单状态是什么", "label": "status_check"}
+{"text": "see available dishes for La Dolce Vita", "label": "menu_browse"}
+{"text": "thanks a lot!", "label": "chitchat"}
+{"text": "when will my food arrive", "label": "status_check"}
+{"text": "surprise me with something good", "label": "recommend"}
+{"text": "the delivery person was rude", "label": "complaint"}
+{"text": "the 担担面 tasted bad, want a refund", "label": "complaint"}
+{"text": "999号订单送错了", "label": "complaint"}
+{"text": "submit a rating for 7", "label": "rating"}
+{"text": "what do you recommend for dinner?", "label": "recommend"}
+{"text": "浏览日料餐厅", "label": "menu_browse"}
+{"text": "find fresh 担担面", "label": "search"}
+{"text": "取消订单7", "label": "cancel"}
+{"text": "不想要了，取消1024", "label": "cancel"}
+{"text": "the delivery person was rude", "label": "complaint"}
+{"text": "我的订单42到哪儿了", "label": "status_check"}
+{"text": "取消订单88", "label": "cancel"}
+{"text": "good morning", "label": "chitchat"}
+{"text": "嗯嗯", "label": "chitchat"}
+{"text": "麻婆豆腐送来的时候是凉的", "label": "complaint"}
+{"text": "track my latest order", "label": "status_check"}
+{"text": "外卖还有多久到", "label": "status_check"}
+{"text": "the pasta was great, 四星 stars", "label": "rating"}
+{"text": "what's the status of order 88?", "label": "status_check"}
+{"text": "suggest a 意餐 dish for me", "label": "recommend"}
+{"text": "hey，今天怎么样", "label": "chitchat"}
+{"text": "给88号订单打4分", "label": "rating"}
+{"text": "hey, how are you?", "label": "chitchat"}
+{"text": "帮我把刚才下的单取消了", "label": "cancel"}
+{"text": "add 烤鸭 to my cart and checkout", "label": "order"}
+{"text": "search for ramen near me", "label": "search"}
+{"text": "you are helpful", "label": "chitchat"}
+{"text": "what should I eat tonight?", "label": "recommend"}
+{"text": "recommend something light", "label": "recommend"}
+{"text": "骑手态度特别差", "label": "complaint"}
+{"text": "order 100 is wrong, I got the wrong dish", "label": "complaint"}
+{"text": "stop the delivery of 88", "label": "cancel"}
+{"text": "any dan dan noodles at 意式餐厅?", "label": "search"}
+{"text": "place an order for 宫保鸡丁 from 粤膳轩", "label": "order"}
+{"text": "good morning", "label": "chitchat"}
+{"text": "search for mapo tofu near me", "label": "search"}
+{"text": "取消订单88", "label": "cancel"}
+{"text": "dim sum送来的时候是凉的", "label": "complaint"}
+{"text": "find cheap 宫保鸡丁", "label": "search"}
+{"text": "has order 316 been delivered yet", "label": "status_check"}
+{"text": "点心送来的时候是凉的", "label": "complaint"}
+{"text": "来一份roast duck", "label": "order"}
+{"text": "is my delivery on the way", "label": "status_check"}
+{"text": "cancel the kung pao chicken I ordered", "label": "cancel"}
+{"text": "give me a popular ramen pick", "label": "recommend"}
+{"text": "cancel order 7", "label": "cancel"}
+{"text": "this is unacceptable service", "label": "complaint"}
+{"text": "this is unacceptable service", "label": "complaint"}
+{"text": "show me the menu of La Dolce Vita", "label": "menu_browse"}
+{"text": "lol ok", "label": "chitchat"}
+{"text": "给2048号订单打五星分", "label": "rating"}
+{"text": "review my last order as 3 stars", "label": "rating"}
+{"text": "你好，今天怎么样", "label": "chitchat"}
+{"text": "来一份sushi", "label": "order"}
+{"text": "给我来点辣的的推荐", "label": "recommend"}
+{"text": "this is unacceptable service", "label": "complaint"}
+{"text": "cancel the ramen I ordered", "label": "cancel"}
+{"text": "I don't know what to eat, help me choose", "label": "recommend"}
+{"text": "骑手态度特别差", "label": "complaint"}
+{"text": "give 4 stars to 意式餐厅", "label": "rating"}
+{"text": "I want to cancel order 2048", "label": "cancel"}
+{"text": "来一份烤鸭", "label": "order"}
+{"text": "今晚吃啥好呢？", "label": "recommend"}
+{"text": "order kung pao chicken for delivery", "label": "order"}
+{"text": "I want to cancel order 100", "label": "cancel"}
+{"text": "good morning", "label": "chitchat"}
+{"text": "has order 42 been delivered yet", "label": "status_check"}
+{"text": "帮我把刚才下的单取消了", "label": "cancel"}
+{"text": "you are helpful", "label": "chitchat"}
+{"text": "recommend something spicy", "label": "recommend"}
+{"text": "嗨, how are you?", "label": "chitchat"}
+{"text": "when will my food arrive", "label": "status_check"}
+{"text": "place an order for 麻婆豆腐 from La Dolce Vita", "label": "order"}
+{"text": "my 宫保鸡丁 arrived cold", "label": "complaint"}
+{"text": "my 宫保鸡丁 arrived cold", "label": "complaint"}
+{"text": "给我来点healthy的推荐", "label": "recommend"}
+{"text": "what's the status of order 100?", "label": "status_check"}
+{"text": "rate order 316 五星 stars", "label": "rating"}
+{"text": "find 清淡的 麻婆豆腐", "label": "search"}
+{"text": "骑手态度特别差", "label": "complaint"}
+{"text": "我要点La Dolce Vita的roast duck", "label": "order"}
+{"text": "look up 点心", "label": "search"}
+{"text": "这次体验不错，打3分", "label": "rating"}
+{"text": "show me Italian food under 50 dollars", "label": "search"}
+{"text": "give 5 stars to Cantonese Kitchen", "label": "rating"}
+{"text": "今晚吃啥好呢？", "label": "recommend"}
+{"text": "browse Sushi Bar", "label": "menu_browse"}
+{"text": "you are helpful", "label": "chitchat"}
+{"text": "给我来点healthy的推荐", "label": "recommend"}
+{"text": "I want to leave a 4-star review on order 7", "label": "rating"}
+{"text": "order mapo tofu for delivery", "label": "order"}
+{"text": "where is my order?", "label": "status_check"}
+{"text": "what does Sichuan Delight serve?", "label": "menu_browse"}
+{"text": "place an order for kung pao chicken from 粤膳轩", "label": "order"}
+{"text": "order pizza for delivery", "label": "order"}
+{"text": "list all dishes at Ramen House", "label": "menu_browse"}
+{"text": "川味轩评个3星", "label": "rating"}
+{"text": "any 点心 at Cantonese Kitchen?", "label": "search"}
+{"text": "骑手态度特别差", "label": "complaint"}
+{"text": "list all dishes at 意式餐厅", "label": "menu_browse"}
+{"text": "我要点川味轩的kung pao chicken", "label": "order"}
+{"text": "has order 1024 been delivered yet", "label": "status_check"}
+{"text": "open the Cantonese menu", "label": "menu_browse"}
+{"text": "any 担担面 at 川味轩?", "label": "search"}
+{"text": "你好", "label": "chitchat"}
+{"text": "add dim sum to my cart and checkout", "label": "order"}
+{"text": "给42号订单打5分", "label": "rating"}
+{"text": "谢啦", "label": "chitchat"}
+{"text": "the delivery person was rude", "label": "complaint"}
+{"text": "this is unacceptable service", "label": "complaint"}
+{"text": "帮我下单两份dan dan noodles", "label": "order"}
+{"text": "look up ramen", "label": "search"}
+{"text": "取消订单42", "label": "cancel"}
+{"text": "骑手态度特别差", "label": "complaint"}
+{"text": "what do you recommend for dinner?", "label": "recommend"}
+{"text": "I'll take the sushi", "label": "order"}
+{"text": "the pasta tasted bad, want a refund", "label": "complaint"}
+{"text": "place an order for 烤鸭 from Sushi Bar", "label": "order"}
+{"text": "what does Ramen House serve?", "label": "menu_browse"}
+{"text": "我的订单88到哪儿了", "label": "status_check"}
+{"text": "rate order 88 四星 stars", "label": "rating"}
+{"text": "hello", "label": "chitchat"}
+{"text": "review my last order as 五星 stars", "label": "rating"}
+{"text": "where is my order?", "label": "status_check"}
+{"text": "cancel the kung pao chicken I ordered", "label": "cancel"}
+{"text": "look up mapo tofu", "label": "search"}
+{"text": "recommend something fresh", "label": "recommend"}
+{"text": "帮我把刚才下的单取消了", "label": "cancel"}
+{"text": "browse Sichuan Delight", "label": "menu_browse"}
+{"text": "谢啦", "label": "chitchat"}
+{"text": "please cancel my last order", "label": "cancel"}
+{"text": "find cheap kung pao chicken", "label": "search"}
+{"text": "show me the menu of 意式餐厅", "label": "menu_browse"}
+{"text": "see available dishes for La Dolce Vita", "label": "menu_browse"}
+{"text": "stop the delivery of 316", "label": "cancel"}
+{"text": "帮我下单两份dim sum", "label": "order"}
+{"text": "submit a rating for 100", "label": "rating"}
+{"text": "please cancel my last order", "label": "cancel"}
+{"text": "add 担担面 to my cart and checkout", "label": "order"}
+{"text": "my sushi arrived cold", "label": "complaint"}
+{"text": "给316号订单打四星分", "label": "rating"}
+{"text": "abort the order I just placed", "label": "cancel"}
+{"text": "I'll take the sushi", "label": "order"}
+{"text": "you are helpful", "label": "chitchat"}
+{"text": "rate order 1024 5 stars", "label": "rating"}
+{"text": "mapo tofu送来的时候是凉的", "label": "complaint"}
+{"text": "submit a rating for 100", "label": "rating"}
+{"text": "帮我找一下烤鸭", "label": "search"}
+{"text": "give me a popular pizza pick", "label": "recommend"}
+{"text": "今晚吃啥好呢？", "label": "recommend"}
+{"text": "推荐个Cantonese吧", "label": "recommend"}
+{"text": "看一下意式餐厅的菜单", "label": "menu_browse"}
+{"text": "I want to leave a 5-star review on order 1024", "label": "rating"}
+{"text": "order 999 is wrong, I got the wrong dish", "label": "complaint"}
+{"text": "please cancel my last order", "label": "cancel"}
+{"text": "place an order for sushi from Cantonese Kitchen", "label": "order"}
+{"text": "recommend something 辣的", "label": "recommend"}
+{"text": "is my delivery on the way", "label": "status_check"}
+{"text": "has order 42 been delivered yet", "label": "status_check"}
+{"text": "has order 999 been delivered yet", "label": "status_check"}
+{"text": "I'll take the dim sum", "label": "order"}
+{"text": "show me Korean food under 20 dollars", "label": "search"}
+{"text": "I'll take the mapo tofu", "label": "order"}
+{"text": "find healthy 宫保鸡丁", "label": "search"}
+{"text": "is there 点心 available", "label": "search"}
+{"text": "get me one 宫保鸡丁 and one 宫保鸡丁", "label": "order"}
+{"text": "open the Thai menu", "label": "menu_browse"}
+{"text": "给我来点便宜的的推荐", "label": "recommend"}
+{"text": "please cancel my last order", "label": "cancel"}
+{"text": "点心送来的时候是凉的", "label": "complaint"}
+{"text": "see available dishes for 意式餐厅", "label": "menu_browse"}
+{"text": "给316号订单打5分", "label": "rating"}
+{"text": "open the 意餐 menu", "label": "menu_browse"}
+{"text": "帮我找一下fried rice", "label": "search"}
+{"text": "我的订单88到哪儿了", "label": "status_check"}
+{"text": "any dan dan noodles at 意式餐厅?", "label": "search"}
+{"text": "Cantonese Kitchen都卖啥", "label": "menu_browse"}
+{"text": "I want to order two 宫保鸡丁", "label": "order"}
+{"text": "place an order for 烤鸭 from Sushi Bar", "label": "order"}
+{"text": "浏览Japanese餐厅", "label": "menu_browse"}
+{"text": "rate order 2048 四星 stars", "label": "rating"}
+{"text": "order ramen for delivery", "label": "order"}
+{"text": "find spicy dim sum", "label": "search"}
+{"text": "review my last order as 5 stars", "label": "rating"}
+{"text": "the ramen tasted bad, want a refund", "label": "complaint"}
+{"text": "I want to cancel order 999", "label": "cancel"}
+{"text": "abort the order I just placed", "label": "cancel"}
+{"text": "what does 粤膳轩 serve?", "label": "menu_browse"}
+{"text": "Ramen House都卖啥", "label": "menu_browse"}
+{"text": "submit a rating for 88", "label": "rating"}
+{"text": "the pizza tasted bad, want a refund", "label": "complaint"}
+{"text": "where is my order?", "label": "status_check"}
+{"text": "I want to cancel order 999", "label": "cancel"}
+{"text": "see available dishes for Ramen House", "label": "menu_browse"}
+{"text": "谢啦", "label": "chitchat"}
+{"text": "when will my food arrive", "label": "status_check"}
+{"text": "thanks a lot!", "label": "chitchat"}
+{"text": "搜一下Italian的菜", "label": "search"}
+{"text": "La Dolce Vita评个五星星", "label": "rating"}
+{"text": "我的订单42到哪儿了", "label": "status_check"}
+{"text": "open the 川菜 menu", "label": "menu_browse"}
+{"text": "review my last order as 五星 stars", "label": "rating"}
+{"text": "when will my food arrive", "label": "status_check"}
+{"text": "帮我下单两份roast duck", "label": "order"}
+{"text": "嗯嗯", "label": "chitchat"}
+{"text": "cancel the 宫保鸡丁 I ordered", "label": "cancel"}
+{"text": "any 烤鸭 at 川味轩?", "label": "search"}
+{"text": "recommend something 清淡的", "label": "recommend"}
+{"text": "粤膳轩评个四星星", "label": "rating"}
+{"text": "my dim sum arrived cold", "label": "complaint"}
+{"text": "7号订单状态是什么", "label": "status_check"}
+{"text": "推荐个Sichuan吧", "label": "recommend"}
+{"text": "browse Cantonese Kitchen", "label": "menu_browse"}
+{"text": "any sushi at Ramen House?", "label": "search"}
+{"text": "the 点心 tasted bad, want a refund", "label": "complaint"}
+{"text": "取消订单7", "label": "cancel"}
+{"text": "316号订单送错了", "label": "complaint"}
+{"text": "cancel the dan dan noodles I ordered", "label": "cancel"}
+{"text": "你好, how are you?", "label": "chitchat"}
+{"text": "hey，今天怎么样", "label": "chitchat"}
+{"text": "search for pizza near me", "label": "search"}
+{"text": "骑手态度特别差", "label": "complaint"}
+{"text": "when will my food arrive", "label": "status_check"}
+{"text": "给999号订单打4分", "label": "rating"}
+{"text": "cancel the ramen I ordered", "label": "cancel"}
+{"text": "suggest a 意餐 dish for me", "label": "recommend"}
+{"text": "有没有便宜的mapo tofu", "label": "search"}
+{"text": "帮我把刚才下的单取消了", "label": "cancel"}
+{"text": "what do you recommend for dinner?", "label": "recommend"}
+{"text": "give 四星 stars to Ramen House", "label": "rating"}
+{"text": "good morning", "label": "chitchat"}
+{"text": "you are helpful", "label": "chitchat"}
+{"text": "open the 粤菜 menu", "label": "menu_browse"}
+{"text": "track my latest order", "label": "status_check"}
+{"text": "is my delivery on the way", "label": "status_check"}
+{"text": "thanks a lot!", "label": "chitchat"}
+{"text": "骑手态度特别差", "label": "complaint"}
+{"text": "browse Ramen House", "label": "menu_browse"}
+{"text": "取消订单2048", "label": "cancel"}
+{"text": "show me the menu of Ramen House", "label": "menu_browse"}
+{"text": "get me one sushi and one 点心", "label": "order"}
+{"text": "any 麻婆豆腐 at Cantonese Kitchen?", "label": "search"}
+{"text": "track my latest order", "label": "status_check"}
+{"text": "hello", "label": "chitchat"}
+{"text": "hello, how are you?", "label": "chitchat"}
+{"text": "place an order for dim sum from Sushi Bar", "label": "order"}
+{"text": "track my latest order", "label": "status_check"}
+{"text": "给316号订单打3分", "label": "rating"}
+{"text": "来一份dan dan noodles", "label": "order"}
+{"text": "浏览意餐餐厅", "label": "menu_browse"}
+{"text": "what should I eat tonight?", "label": "recommend"}
+{"text": "你好", "label": "chitchat"}
+{"text": "我要点Ramen House的kung pao chicken", "label": "order"}
+{"text": "the ramen tasted bad, want a refund", "label": "complaint"}
+{"text": "取消订单42", "label": "cancel"}
+{"text": "is my delivery on the way", "label": "status_check"}
+{"text": "不想要了，取消88", "label": "cancel"}
+{"text": "看一下意式餐厅的菜单", "label": "menu_browse"}
+{"text": "give 五星 stars to 意式餐厅", "label": "rating"}
