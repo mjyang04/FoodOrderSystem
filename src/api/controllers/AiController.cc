@@ -20,6 +20,7 @@ using drogon::HttpResponsePtr;
 using drogon::HttpResponse;
 using drogon::k200OK;
 using drogon::k400BadRequest;
+using drogon::k403Forbidden;
 using drogon::k502BadGateway;
 using drogon::k503ServiceUnavailable;
 using fos::api::errorResponse;
@@ -233,6 +234,68 @@ void AiController::chat(
             }
 
             forwardUpstreamResponse(resp, cb);
+        });
+}
+
+void AiController::stats(
+    const HttpRequestPtr& req,
+    std::function<void(const HttpResponsePtr&)>&& callback)
+{
+    // Sprint 6 Phase 5: admin-only metrics proxy. The Python service also
+    // enforces the admin header (defense-in-depth) but the canonical
+    // role check lives here where we have a signed JWT context.
+    auto ctx = readAuthContext(req);
+    if (!ctx.isAdmin())
+    {
+        callback(errorResponse(k403Forbidden, err::kForbidden,
+                               "admin role required"));
+        return;
+    }
+
+    std::string window = req->getParameter("window_seconds");
+    if (window.empty()) window = "86400";
+
+    auto upReq = HttpRequest::newHttpRequest();
+    upReq->setMethod(HttpMethod::Get);
+    upReq->setPath("/ai/stats");
+    upReq->setParameter("window_seconds", window);
+    upReq->addHeader("X-User-Id", std::to_string(ctx.userId));
+    upReq->addHeader("X-User-Role", "admin");
+
+    auto client = HttpClient::newHttpClient(aiServiceUrl());
+
+    client->sendRequest(
+        upReq,
+        [cb = std::move(callback)](drogon::ReqResult result,
+                                    const HttpResponsePtr& resp)
+        {
+            if (result != drogon::ReqResult::Ok)
+            {
+                cb(errorResponse(k503ServiceUnavailable, err::kAiUnavailable,
+                                 "AI service is unreachable"));
+                return;
+            }
+
+            const int status = static_cast<int>(resp->statusCode());
+            const auto errCode = mapUpstreamStatus(status);
+            if (!errCode.empty())
+            {
+                cb(errorResponse(fos::api::statusForError(errCode),
+                                 errCode, extractDetail(resp)));
+                return;
+            }
+
+            // The Python /ai/stats endpoint already wraps its response in the
+            // {"success": true, "data": ...} envelope, so we forward the body
+            // verbatim rather than double-wrapping it.
+            auto bodyPtr = resp->getJsonObject();
+            if (!bodyPtr || !bodyPtr->isMember("data"))
+            {
+                cb(errorResponse(k502BadGateway, err::kAiUpstreamError,
+                                 "AI service returned unexpected stats shape"));
+                return;
+            }
+            cb(successResponse((*bodyPtr)["data"], k200OK));
         });
 }
 
