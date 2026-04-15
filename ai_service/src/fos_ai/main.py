@@ -9,7 +9,7 @@ from fastapi import FastAPI
 
 from fos_ai.config import Settings
 from fos_ai import deps
-from fos_ai.routers import chat, health, parse, recommend, search
+from fos_ai.routers import chat, health, intent, parse, recommend, search
 
 logging.basicConfig(
     level=logging.INFO,
@@ -110,6 +110,7 @@ async def lifespan(app: FastAPI):
         logger.info("Reranker disabled — RERANK_ENABLED not set")
 
     # Create LLM client
+    llm = None
     try:
         from fos_ai.services.llm_client import create_llm_client
 
@@ -125,6 +126,9 @@ async def lifespan(app: FastAPI):
         deps.init_llm_client(llm)
     except ValueError as exc:
         logger.warning("LLM client not created: %s — parse-order will fail", exc)
+
+    # Wire intent classifier: prefer LoRA adapter, fall back to LLM tool-call
+    _wire_intent_classifier(settings, llm)
 
     logger.info(
         "fos_ai ready — provider=%s, menu=%d items",
@@ -155,3 +159,39 @@ app.include_router(parse.router)
 app.include_router(search.router)
 app.include_router(recommend.router)
 app.include_router(chat.router)
+app.include_router(intent.router)
+
+
+def _wire_intent_classifier(settings: Settings, llm) -> None:
+    """Pick LoRA adapter if available, else LLM fallback, else none.
+
+    Isolated helper so the lifespan code stays linear.
+    """
+    from pathlib import Path
+
+    from fos_ai.services.intent_classifier import (
+        FallbackIntentClassifier,
+        IntentUnavailable,
+        LoraIntentClassifier,
+    )
+
+    adapter_path = settings.intent_adapter_path
+    if adapter_path and Path(adapter_path).exists():
+        try:
+            classifier = LoraIntentClassifier(
+                base_model=settings.intent_base_model,
+                adapter_path=adapter_path,
+            )
+            deps.init_intent_classifier(classifier, source="lora")
+            logger.info("Intent classifier: LoRA adapter at %s", adapter_path)
+            return
+        except IntentUnavailable as exc:
+            logger.warning("LoRA intent classifier load failed: %s — trying fallback", exc)
+
+    if llm is not None:
+        deps.init_intent_classifier(FallbackIntentClassifier(llm=llm), source="fallback")
+        logger.info("Intent classifier: LLM fallback (few-shot tool call)")
+        return
+
+    deps.init_intent_classifier(None, source="none")
+    logger.warning("Intent classifier: disabled — /ai/intent will 503")

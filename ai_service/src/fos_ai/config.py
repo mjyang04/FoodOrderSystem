@@ -43,6 +43,12 @@ class Settings(BaseSettings):
     rerank_enabled: bool = False
     rerank_model: str = "BAAI/bge-reranker-base"
 
+    # --- Intent classifier ---
+    # Directory holding a PEFT adapter trained by `fos_ai_training.intent.train`.
+    # When unset/missing, the service falls back to an LLM-tool-call classifier.
+    intent_adapter_path: str | None = None
+    intent_base_model: str = "Qwen/Qwen2.5-0.5B-Instruct"
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
     def validate_llm(self) -> None:
