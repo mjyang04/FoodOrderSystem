@@ -2,78 +2,181 @@
   {
     "id": "p01",
     "text": "two kung pao chicken",
-    "llm_stub": {
-      "restaurant_name": "Sichuan Delight",
-      "items": [{"food_name": "Kung Pao Chicken", "quantity": 2}]
-    },
-    "expected": {
-      "restaurant_id": 1,
-      "item_count": 1,
-      "total": 24.0,
-      "min_confidence": 0.9
-    }
+    "llm_stub": {"restaurant_name": "Sichuan Delight", "items": [{"food_name": "Kung Pao Chicken", "quantity": 2}]},
+    "expected": {"restaurant_id": 1, "item_count": 1, "total": 24.0, "min_confidence": 0.9}
   },
   {
     "id": "p02",
     "text": "one mapo tofu and one dan dan noodles",
-    "llm_stub": {
-      "restaurant_name": "Sichuan Delight",
-      "items": [
-        {"food_name": "Mapo Tofu", "quantity": 1},
-        {"food_name": "Dan Dan Noodles", "quantity": 1}
-      ]
-    },
-    "expected": {
-      "restaurant_id": 1,
-      "item_count": 2,
-      "total": 16.0,
-      "min_confidence": 0.9
-    }
+    "llm_stub": {"restaurant_name": "Sichuan Delight", "items": [{"food_name": "Mapo Tofu", "quantity": 1}, {"food_name": "Dan Dan Noodles", "quantity": 1}]},
+    "expected": {"restaurant_id": 1, "item_count": 2, "total": 16.0, "min_confidence": 0.9}
   },
   {
     "id": "p03",
     "text": "a whole roast duck from cantonese kitchen",
-    "llm_stub": {
-      "restaurant_name": "Cantonese Kitchen",
-      "delivery_option": "Standard",
-      "items": [{"food_name": "Roast Duck", "quantity": 1}]
-    },
-    "expected": {
-      "restaurant_id": 3,
-      "item_count": 1,
-      "total": 20.0,
-      "min_confidence": 0.9
-    }
+    "llm_stub": {"restaurant_name": "Cantonese Kitchen", "delivery_option": "Standard", "items": [{"food_name": "Roast Duck", "quantity": 1}]},
+    "expected": {"restaurant_id": 3, "item_count": 1, "total": 20.0, "min_confidence": 0.9}
   },
   {
     "id": "p04",
     "text": "three pasta please",
-    "llm_stub": {
-      "restaurant_name": "La Dolce Vita",
-      "items": [{"food_name": "Pasta", "quantity": 3}]
-    },
-    "expected": {
-      "restaurant_id": 5,
-      "item_count": 1,
-      "total": 30.0,
-      "min_confidence": 0.9
-    }
+    "llm_stub": {"restaurant_name": "La Dolce Vita", "items": [{"food_name": "Pasta", "quantity": 3}]},
+    "expected": {"restaurant_id": 5, "item_count": 1, "total": 30.0, "min_confidence": 0.9}
   },
   {
     "id": "p05",
     "text": "dim sum and roast duck",
-    "llm_stub": {
-      "restaurant_name": "Cantonese Kitchen",
-      "items": [
-        {"food_name": "Dim Sum", "quantity": 1},
-        {"food_name": "Roast Duck", "quantity": 1}
-      ]
-    },
-    "expected": {
-      "restaurant_id": 3,
-      "item_count": 2,
-      "total": 30.0,
-      "min_confidence": 0.9
-    }
+    "llm_stub": {"restaurant_name": "Cantonese Kitchen", "items": [{"food_name": "Dim Sum", "quantity": 1}, {"food_name": "Roast Duck", "quantity": 1}]},
+    "expected": {"restaurant_id": 3, "item_count": 2, "total": 30.0, "min_confidence": 0.9}
+  },
+  {
+    "id": "p06",
+    "text": "one hot pot",
+    "llm_stub": {"restaurant_name": "Sichuan Delight", "items": [{"food_name": "Hot Pot", "quantity": 1}]},
+    "expected": {"restaurant_id": 1, "item_count": 1, "total": 15.0, "min_confidence": 0.9}
+  },
+  {
+    "id": "p07",
+    "text": "two pizzas",
+    "llm_stub": {"restaurant_name": "La Dolce Vita", "items": [{"food_name": "Pizza", "quantity": 2}]},
+    "expected": {"restaurant_id": 5, "item_count": 1, "total": 30.0, "min_confidence": 0.9}
+  },
+  {
+    "id": "p08",
+    "text": "tiramisu for dessert",
+    "llm_stub": {"restaurant_name": "La Dolce Vita", "items": [{"food_name": "Tiramisu", "quantity": 1}]},
+    "expected": {"restaurant_id": 5, "item_count": 1, "total": 5.0, "min_confidence": 0.9}
+  },
+  {
+    "id": "p09",
+    "text": "one margherita pizza",
+    "llm_stub": {"restaurant_name": "Roma Ristorante", "items": [{"food_name": "Margherita Pizza", "quantity": 1}]},
+    "expected": {"restaurant_id": 6, "item_count": 1, "total": 16.0, "min_confidence": 0.9}
+  },
+  {
+    "id": "p10",
+    "text": "one well-done steak",
+    "llm_stub": {"restaurant_name": "Le Petit Bistro", "items": [{"food_name": "Steak", "quantity": 1}]},
+    "expected": {"restaurant_id": 7, "item_count": 1, "total": 25.0, "min_confidence": 0.9}
+  },
+  {
+    "id": "p11",
+    "text": "chicken shawarma please",
+    "llm_stub": {"restaurant_name": "Lebanese Delights", "items": [{"food_name": "Shawarma", "quantity": 1}]},
+    "expected": {"restaurant_id": 9, "item_count": 1, "total": 10.0, "min_confidence": 0.9}
+  },
+  {
+    "id": "p12",
+    "text": "one chicken tagine",
+    "llm_stub": {"restaurant_name": "Moroccan Feast", "items": [{"food_name": "Tagine", "quantity": 1}]},
+    "expected": {"restaurant_id": 10, "item_count": 1, "total": 15.0, "min_confidence": 0.9}
+  },
+  {
+    "id": "p13",
+    "text": "four beef tacos",
+    "llm_stub": {"restaurant_name": "Texas Tacos", "items": [{"food_name": "Taco", "quantity": 4}]},
+    "expected": {"restaurant_id": 11, "item_count": 1, "total": 12.0, "min_confidence": 0.9}
+  },
+  {
+    "id": "p14",
+    "text": "tuna nigiri and salmon sashimi",
+    "llm_stub": {"restaurant_name": "Sushi House", "items": [{"food_name": "Nigiri", "quantity": 1}, {"food_name": "Sashimi", "quantity": 1}]},
+    "expected": {"restaurant_id": 13, "item_count": 2, "total": 26.0, "min_confidence": 0.9}
+  },
+  {
+    "id": "p15",
+    "text": "one tonkotsu ramen",
+    "llm_stub": {"restaurant_name": "Ramen World", "items": [{"food_name": "Tonkotsu Ramen", "quantity": 1}]},
+    "expected": {"restaurant_id": 14, "item_count": 1, "total": 12.0, "min_confidence": 0.9}
+  },
+  {
+    "id": "p16",
+    "text": "extreme spicy ramen",
+    "llm_stub": {"restaurant_name": "Ramen World", "items": [{"food_name": "Spicy Ramen", "quantity": 1}]},
+    "expected": {"restaurant_id": 14, "item_count": 1, "total": 13.0, "min_confidence": 0.9}
+  },
+  {
+    "id": "p17",
+    "text": "kung pao chicken x3 and mapo tofu x2",
+    "llm_stub": {"restaurant_name": "Sichuan Delight", "items": [{"food_name": "Kung Pao Chicken", "quantity": 3}, {"food_name": "Mapo Tofu", "quantity": 2}]},
+    "expected": {"restaurant_id": 1, "item_count": 2, "total": 52.0, "min_confidence": 0.9}
+  },
+  {
+    "id": "p18",
+    "text": "bbq pork buns",
+    "llm_stub": {"restaurant_name": "Cantonese Kitchen", "items": [{"food_name": "BBQ Pork Buns", "quantity": 1}]},
+    "expected": {"restaurant_id": 3, "item_count": 1, "total": 3.0, "min_confidence": 0.9}
+  },
+  {
+    "id": "p19",
+    "text": "three bbq pork buns and two dim sum",
+    "llm_stub": {"restaurant_name": "Cantonese Kitchen", "items": [{"food_name": "BBQ Pork Buns", "quantity": 3}, {"food_name": "Dim Sum", "quantity": 2}]},
+    "expected": {"restaurant_id": 3, "item_count": 2, "total": 29.0, "min_confidence": 0.9}
+  },
+  {
+    "id": "p20",
+    "text": "char siu please",
+    "llm_stub": {"restaurant_name": "Guangzhou Garden", "items": [{"food_name": "Char Siu", "quantity": 1}]},
+    "expected": {"restaurant_id": 4, "item_count": 1, "total": 12.0, "min_confidence": 0.9}
+  },
+  {
+    "id": "p21",
+    "text": "one boiled fish, extra spicy",
+    "llm_stub": {"restaurant_name": "Chengdu Flavors", "items": [{"food_name": "Boiled Fish", "quantity": 1}]},
+    "expected": {"restaurant_id": 2, "item_count": 1, "total": 16.0, "min_confidence": 0.9}
+  },
+  {
+    "id": "p22",
+    "text": "半只烤鸭",
+    "llm_stub": {"restaurant_name": "Cantonese Kitchen", "items": [{"food_name": "Roast Duck", "quantity": 1}]},
+    "expected": {"restaurant_id": 3, "item_count": 1, "total": 20.0, "min_confidence": 0.9}
+  },
+  {
+    "id": "p23",
+    "text": "两份麻婆豆腐",
+    "llm_stub": {"restaurant_name": "Sichuan Delight", "items": [{"food_name": "Mapo Tofu", "quantity": 2}]},
+    "expected": {"restaurant_id": 1, "item_count": 1, "total": 16.0, "min_confidence": 0.9}
+  },
+  {
+    "id": "p24",
+    "text": "一份意大利面",
+    "llm_stub": {"restaurant_name": "La Dolce Vita", "items": [{"food_name": "Pasta", "quantity": 1}]},
+    "expected": {"restaurant_id": 5, "item_count": 1, "total": 10.0, "min_confidence": 0.9}
+  },
+  {
+    "id": "p25",
+    "text": "5 tacos and nachos... wait just tacos",
+    "llm_stub": {"restaurant_name": "Texas Tacos", "items": [{"food_name": "Taco", "quantity": 5}]},
+    "expected": {"restaurant_id": 11, "item_count": 1, "total": 15.0, "min_confidence": 0.9}
+  },
+  {
+    "id": "p26",
+    "text": "dan dan noodles with extra spicy, three please",
+    "llm_stub": {"restaurant_name": "Sichuan Delight", "items": [{"food_name": "Dan Dan Noodles", "quantity": 3}]},
+    "expected": {"restaurant_id": 1, "item_count": 1, "total": 24.0, "min_confidence": 0.9}
+  },
+  {
+    "id": "p27",
+    "text": "spicy ramen plus a tonkotsu ramen",
+    "llm_stub": {"restaurant_name": "Ramen World", "items": [{"food_name": "Spicy Ramen", "quantity": 1}, {"food_name": "Tonkotsu Ramen", "quantity": 1}]},
+    "expected": {"restaurant_id": 14, "item_count": 2, "total": 25.0, "min_confidence": 0.9}
+  },
+  {
+    "id": "p28",
+    "text": "six pieces of bbq pork buns",
+    "llm_stub": {"restaurant_name": "Cantonese Kitchen", "items": [{"food_name": "BBQ Pork Buns", "quantity": 6}]},
+    "expected": {"restaurant_id": 3, "item_count": 1, "total": 18.0, "min_confidence": 0.9}
+  },
+  {
+    "id": "p29",
+    "text": "nigiri tuna please",
+    "llm_stub": {"restaurant_name": "Sushi House", "items": [{"food_name": "Nigiri", "quantity": 1}]},
+    "expected": {"restaurant_id": 13, "item_count": 1, "total": 12.0, "min_confidence": 0.9}
+  },
+  {
+    "id": "p30",
+    "text": "lamb shawarma with pita",
+    "llm_stub": {"restaurant_name": "Lebanese Delights", "items": [{"food_name": "Shawarma", "quantity": 1}]},
+    "expected": {"restaurant_id": 9, "item_count": 1, "total": 10.0, "min_confidence": 0.9}
   }
 ]
