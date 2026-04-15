@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Protocol
+from typing import Any, Iterator, Protocol
 
 logger = logging.getLogger(__name__)
 
@@ -34,10 +34,46 @@ class TextOnlyResult:
     stop_reason: str = ""
 
 
+@dataclass(frozen=True)
+class MessagesResult:
+    """Multi-turn response — content blocks kept in Anthropic-native shape.
+
+    Content blocks are one of:
+      - {"type": "text", "text": "..."}
+      - {"type": "tool_use", "id": "...", "name": "...", "input": {...}}
+    """
+
+    content: list[dict[str, Any]]
+    stop_reason: str = ""
+
+    @property
+    def text(self) -> str:
+        return "\n".join(
+            b.get("text", "") for b in self.content if b.get("type") == "text"
+        )
+
+    @property
+    def tool_uses(self) -> list[dict[str, Any]]:
+        return [b for b in self.content if b.get("type") == "tool_use"]
+
+
+@dataclass(frozen=True)
+class StreamEvent:
+    """Provider-agnostic streaming chunk.
+
+    Types:
+      - "text_delta": partial assistant text — payload = {"delta": "..."}
+      - "message_stop": streaming finished — payload = {"stop_reason": "...", "content": [...]}
+    """
+
+    type: str
+    payload: dict[str, Any] = field(default_factory=dict)
+
+
 # ---- protocol ----
 
 class LlmClient(Protocol):
-    """Minimal contract that parser.py programmes against."""
+    """Minimal contract that parser.py and chat_engine.py programme against."""
 
     def tool_call(
         self,
@@ -47,6 +83,24 @@ class LlmClient(Protocol):
         tools: list[dict[str, Any]],
         max_tokens: int = 1024,
     ) -> ToolCallResult | TextOnlyResult: ...
+
+    def messages(
+        self,
+        *,
+        system: str,
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]],
+        max_tokens: int = 1024,
+    ) -> MessagesResult: ...
+
+    def messages_stream(
+        self,
+        *,
+        system: str,
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]],
+        max_tokens: int = 1024,
+    ) -> Iterator[StreamEvent]: ...
 
 
 # ---- Anthropic implementation ----
@@ -104,6 +158,78 @@ class AnthropicLlmClient:
             raw_text=raw_text,
             stop_reason=resp.stop_reason or "",
         )
+
+    def messages(
+        self,
+        *,
+        system: str,
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]],
+        max_tokens: int = 1024,
+    ) -> MessagesResult:
+        resp = self._client.messages.create(
+            model=self._model,
+            max_tokens=max_tokens,
+            system=system,
+            messages=messages,
+            tools=tools,
+        )
+        content: list[dict[str, Any]] = []
+        for block in resp.content:
+            if block.type == "text":
+                content.append({"type": "text", "text": block.text})
+            elif block.type == "tool_use":
+                content.append({
+                    "type": "tool_use",
+                    "id": block.id,
+                    "name": block.name,
+                    "input": dict(block.input) if block.input else {},
+                })
+        return MessagesResult(content=content, stop_reason=resp.stop_reason or "")
+
+    def messages_stream(
+        self,
+        *,
+        system: str,
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]],
+        max_tokens: int = 1024,
+    ) -> Iterator[StreamEvent]:
+        with self._client.messages.stream(
+            model=self._model,
+            max_tokens=max_tokens,
+            system=system,
+            messages=messages,
+            tools=tools,
+        ) as stream:
+            for event in stream:
+                etype = getattr(event, "type", "")
+                if etype == "content_block_delta":
+                    delta = getattr(event, "delta", None)
+                    if delta is not None and getattr(delta, "type", "") == "text_delta":
+                        yield StreamEvent(
+                            type="text_delta",
+                            payload={"delta": delta.text or ""},
+                        )
+            final = stream.get_final_message()
+            content: list[dict[str, Any]] = []
+            for block in final.content:
+                if block.type == "text":
+                    content.append({"type": "text", "text": block.text})
+                elif block.type == "tool_use":
+                    content.append({
+                        "type": "tool_use",
+                        "id": block.id,
+                        "name": block.name,
+                        "input": dict(block.input) if block.input else {},
+                    })
+            yield StreamEvent(
+                type="message_stop",
+                payload={
+                    "stop_reason": final.stop_reason or "",
+                    "content": content,
+                },
+            )
 
 
 # ---- OpenAI implementation ----
@@ -169,6 +295,120 @@ class OpenAILlmClient:
             stop_reason=choice.finish_reason or "",
         )
 
+    def messages(
+        self,
+        *,
+        system: str,
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]],
+        max_tokens: int = 1024,
+    ) -> MessagesResult:
+        oai_tools = _anthropic_tools_to_openai(tools)
+        oai_messages = _anthropic_messages_to_openai(system, messages)
+
+        resp = self._client.chat.completions.create(
+            model=self._model,
+            max_tokens=max_tokens,
+            messages=oai_messages,
+            tools=oai_tools,
+        )
+        choice = resp.choices[0]
+        msg = choice.message
+        content: list[dict[str, Any]] = []
+
+        if msg.content:
+            content.append({"type": "text", "text": msg.content})
+        for tc in msg.tool_calls or []:
+            try:
+                tool_input = json.loads(tc.function.arguments or "{}")
+            except (json.JSONDecodeError, TypeError):
+                tool_input = {}
+            content.append({
+                "type": "tool_use",
+                "id": tc.id,
+                "name": tc.function.name,
+                "input": tool_input,
+            })
+
+        stop_reason = _openai_finish_reason_to_anthropic(choice.finish_reason or "")
+        return MessagesResult(content=content, stop_reason=stop_reason)
+
+    def messages_stream(
+        self,
+        *,
+        system: str,
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]],
+        max_tokens: int = 1024,
+    ) -> Iterator[StreamEvent]:
+        oai_tools = _anthropic_tools_to_openai(tools)
+        oai_messages = _anthropic_messages_to_openai(system, messages)
+
+        stream = self._client.chat.completions.create(
+            model=self._model,
+            max_tokens=max_tokens,
+            messages=oai_messages,
+            tools=oai_tools,
+            stream=True,
+        )
+
+        text_buf: list[str] = []
+        # tool call fragments keyed by index: {"id": str, "name": str, "args": str}
+        tool_frags: dict[int, dict[str, str]] = {}
+        finish_reason = ""
+
+        for chunk in stream:
+            if not chunk.choices:
+                continue
+            choice = chunk.choices[0]
+            delta = choice.delta
+
+            if getattr(delta, "content", None):
+                text_buf.append(delta.content)
+                yield StreamEvent(
+                    type="text_delta",
+                    payload={"delta": delta.content},
+                )
+
+            for tc in getattr(delta, "tool_calls", None) or []:
+                idx = getattr(tc, "index", 0)
+                frag = tool_frags.setdefault(idx, {"id": "", "name": "", "args": ""})
+                if getattr(tc, "id", None):
+                    frag["id"] = tc.id
+                fn = getattr(tc, "function", None)
+                if fn is not None:
+                    if getattr(fn, "name", None):
+                        frag["name"] = fn.name
+                    if getattr(fn, "arguments", None):
+                        frag["args"] += fn.arguments
+
+            if getattr(choice, "finish_reason", None):
+                finish_reason = choice.finish_reason
+
+        content: list[dict[str, Any]] = []
+        if text_buf:
+            content.append({"type": "text", "text": "".join(text_buf)})
+        for idx in sorted(tool_frags):
+            frag = tool_frags[idx]
+            try:
+                tool_input = json.loads(frag["args"] or "{}")
+            except (json.JSONDecodeError, TypeError):
+                tool_input = {}
+            content.append({
+                "type": "tool_use",
+                "id": frag["id"],
+                "name": frag["name"],
+                "input": tool_input,
+            })
+
+        yield StreamEvent(
+            type="message_stop",
+            payload={
+                "stop_reason": _openai_finish_reason_to_anthropic(finish_reason),
+                "content": content,
+            },
+        )
+
 
 def _anthropic_tools_to_openai(
     tools: list[dict[str, Any]],
@@ -195,6 +435,94 @@ def _anthropic_tools_to_openai(
             },
         })
     return oai
+
+
+def _anthropic_messages_to_openai(
+    system: str,
+    messages: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Convert Anthropic-native message history to OpenAI chat-completions format.
+
+    Anthropic assistant tool use block → OpenAI assistant.tool_calls
+    Anthropic user tool_result block  → OpenAI role=tool message
+    """
+    out: list[dict[str, Any]] = []
+    if system:
+        out.append({"role": "system", "content": system})
+
+    for msg in messages:
+        role = msg.get("role")
+        content = msg.get("content")
+
+        # Plain user/assistant text (already a string)
+        if isinstance(content, str):
+            out.append({"role": role, "content": content})
+            continue
+
+        if not isinstance(content, list):
+            continue
+
+        if role == "user":
+            # A user turn may contain plain text AND/OR tool_result blocks.
+            text_parts: list[str] = []
+            for block in content:
+                btype = block.get("type")
+                if btype == "text":
+                    text_parts.append(block.get("text", ""))
+                elif btype == "tool_result":
+                    # Emit a separate role=tool message per tool_result
+                    result_content = block.get("content")
+                    if isinstance(result_content, list):
+                        result_text = "\n".join(
+                            c.get("text", "") for c in result_content
+                            if c.get("type") == "text"
+                        )
+                    else:
+                        result_text = str(result_content) if result_content is not None else ""
+                    out.append({
+                        "role": "tool",
+                        "tool_call_id": block.get("tool_use_id", ""),
+                        "content": result_text,
+                    })
+            if text_parts:
+                out.append({"role": "user", "content": "\n".join(text_parts)})
+
+        elif role == "assistant":
+            text_parts = []
+            tool_calls: list[dict[str, Any]] = []
+            for block in content:
+                btype = block.get("type")
+                if btype == "text":
+                    text_parts.append(block.get("text", ""))
+                elif btype == "tool_use":
+                    tool_calls.append({
+                        "id": block.get("id", ""),
+                        "type": "function",
+                        "function": {
+                            "name": block.get("name", ""),
+                            "arguments": json.dumps(block.get("input", {})),
+                        },
+                    })
+            assistant_msg: dict[str, Any] = {"role": "assistant"}
+            if text_parts:
+                assistant_msg["content"] = "\n".join(text_parts)
+            if tool_calls:
+                assistant_msg["tool_calls"] = tool_calls
+            if "content" in assistant_msg or tool_calls:
+                out.append(assistant_msg)
+
+    return out
+
+
+def _openai_finish_reason_to_anthropic(reason: str) -> str:
+    """Map OpenAI finish_reason values to Anthropic-compatible stop_reason."""
+    mapping = {
+        "stop": "end_turn",
+        "tool_calls": "tool_use",
+        "length": "max_tokens",
+        "content_filter": "stop_sequence",
+    }
+    return mapping.get(reason, reason)
 
 
 # ---- factory ----
