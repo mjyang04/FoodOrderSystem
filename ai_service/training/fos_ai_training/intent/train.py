@@ -230,14 +230,19 @@ def main(argv: list[str] | None = None) -> int:
         seed=args.seed,
     )
 
-    trainer = Trainer(
-        model=model,
-        args=training_args,
-        train_dataset=train_ds,
-        eval_dataset=val_ds,
-        data_collator=collator,
-        tokenizer=tokenizer,
-    )
+    # transformers ≥ 4.46 renamed `tokenizer=` to `processing_class=`; keep
+    # backward compatibility with older installs via a try/except.
+    trainer_kwargs: dict = {
+        "model": model,
+        "args": training_args,
+        "train_dataset": train_ds,
+        "eval_dataset": val_ds,
+        "data_collator": collator,
+    }
+    try:
+        trainer = Trainer(**trainer_kwargs, processing_class=tokenizer)
+    except TypeError:
+        trainer = Trainer(**trainer_kwargs, tokenizer=tokenizer)
 
     trainer.train()
 
