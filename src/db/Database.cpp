@@ -24,6 +24,7 @@ bool Database::connect(const std::string& host, const std::string& user,
                        const std::string& password, const std::string& dbName,
                        unsigned int port)
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     conn_ = mysql_init(nullptr);
     if (!conn_)
     {
@@ -45,6 +46,7 @@ bool Database::connect(const std::string& host, const std::string& user,
 
 void Database::disconnect()
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     if (conn_)
     {
         mysql_close(conn_);
@@ -55,6 +57,7 @@ void Database::disconnect()
 
 bool Database::isConnected() const
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     return conn_ != nullptr;
 }
 
@@ -107,6 +110,7 @@ MYSQL_STMT* Database::prepareStatement(const std::string& query)
 // ---- Schema Initialization ----
 void Database::initializeSchema()
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     const std::vector<std::string> statements = {
         R"(CREATE TABLE IF NOT EXISTS users (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -168,12 +172,41 @@ void Database::initializeSchema()
     {
         executeQuery(sql);
     }
+
+    // ---- Sprint 3 additive migrations ----
+    // MySQL's ALTER TABLE ... ADD COLUMN IF NOT EXISTS is 8.0.23+; for older
+    // servers we probe SHOW COLUMNS first so repeated startups don't spam
+    // the error log with "duplicate column" failures. Columns are NULL-able
+    // so the legacy CLI createOrder(const Order&) path keeps working without
+    // any code changes.
+    auto ensureColumn = [this](const std::string& table,
+                               const std::string& column,
+                               const std::string& definition)
+    {
+        const std::string probe =
+            "SHOW COLUMNS FROM " + table + " LIKE '" + column + "'";
+        MYSQL_RES* res = executeSelect(probe);
+        bool exists = (res != nullptr && mysql_num_rows(res) > 0);
+        if (res) mysql_free_result(res);
+        if (exists) return;
+
+        const std::string alter =
+            "ALTER TABLE " + table + " ADD COLUMN " + column + " " + definition;
+        if (executeQuery(alter))
+        {
+            LOG_INFO("Schema migrated: added " + table + "." + column);
+        }
+    };
+    ensureColumn("orders", "restaurant_id", "INT NULL");
+    ensureColumn("order_items", "food_id", "INT NULL");
+
     LOG_DEBUG("Schema initialized");
 }
 
 // ---- User operations (Prepared Statements) ----
 bool Database::createUser(const std::string& username, const std::string& password, UserRole role)
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     if (userExists(username))
     {
         throw UserExistsException(username);
@@ -230,6 +263,7 @@ bool Database::createUser(const std::string& username, const std::string& passwo
 
 User Database::findUserByUsername(const std::string& username)
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     const std::string sql = "SELECT id, username, password_hash, salt, role FROM users WHERE username=?";
     MYSQL_STMT* stmt = prepareStatement(sql);
     if (!stmt) return {};
@@ -300,6 +334,7 @@ User Database::findUserByUsername(const std::string& username)
 
 bool Database::userExists(const std::string& username)
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     std::string sql = "SELECT COUNT(*) FROM users WHERE username='" + escape(username) + "'";
     MYSQL_RES* res = executeSelect(sql);
     if (!res) return false;
@@ -312,6 +347,7 @@ bool Database::userExists(const std::string& username)
 
 std::vector<User> Database::getAllUsers()
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     std::vector<User> users;
     MYSQL_RES* res = executeSelect("SELECT id, username, password_hash, salt, role FROM users");
     if (!res) return users;
@@ -329,8 +365,16 @@ std::vector<User> Database::getAllUsers()
 // ---- Restaurant operations ----
 std::vector<Restaurant> Database::getAllRestaurants()
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     std::vector<Restaurant> restaurants;
-    MYSQL_RES* res = executeSelect("SELECT id, name, cuisine_type FROM restaurants ORDER BY id");
+    // Sprint 2.5 (L-PAGINATION): server-side cap at 200 rows so an
+    // accidentally-large restaurants table cannot be walked in one
+    // request from /api/restaurants. The seed data ships with 14 rows,
+    // so the cap is invisible in practice. Sprint 3 will replace this
+    // with a proper page/limit query parameter once the catalogue can
+    // actually grow.
+    MYSQL_RES* res = executeSelect(
+        "SELECT id, name, cuisine_type FROM restaurants ORDER BY id LIMIT 200");
     if (!res) return restaurants;
 
     MYSQL_ROW row;
@@ -348,8 +392,66 @@ std::vector<Restaurant> Database::getAllRestaurants()
     return restaurants;
 }
 
+std::optional<Restaurant> Database::findRestaurantById(int id)
+{
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    const std::string sql = "SELECT id, name, cuisine_type FROM restaurants WHERE id=?";
+    MYSQL_STMT* stmt = prepareStatement(sql);
+    if (!stmt) return std::nullopt;
+
+    MYSQL_BIND paramBind[1];
+    std::memset(paramBind, 0, sizeof(paramBind));
+    int idParam = id;
+    paramBind[0].buffer_type = MYSQL_TYPE_LONG;
+    paramBind[0].buffer = &idParam;
+
+    mysql_stmt_bind_param(stmt, paramBind);
+    if (mysql_stmt_execute(stmt))
+    {
+        LOG_ERROR(std::string("findRestaurantById exec failed: ") + mysql_stmt_error(stmt));
+        mysql_stmt_close(stmt);
+        return std::nullopt;
+    }
+
+    MYSQL_BIND resultBind[3];
+    std::memset(resultBind, 0, sizeof(resultBind));
+    int rowId = 0;
+    char nameBuf[128] = {};
+    char typeBuf[64] = {};
+    unsigned long nameLen = 0;
+    unsigned long typeLen = 0;
+
+    resultBind[0].buffer_type = MYSQL_TYPE_LONG;
+    resultBind[0].buffer = &rowId;
+
+    resultBind[1].buffer_type = MYSQL_TYPE_STRING;
+    resultBind[1].buffer = nameBuf;
+    resultBind[1].buffer_length = sizeof(nameBuf);
+    resultBind[1].length = &nameLen;
+
+    resultBind[2].buffer_type = MYSQL_TYPE_STRING;
+    resultBind[2].buffer = typeBuf;
+    resultBind[2].buffer_length = sizeof(typeBuf);
+    resultBind[2].length = &typeLen;
+
+    mysql_stmt_bind_result(stmt, resultBind);
+    mysql_stmt_store_result(stmt);
+
+    std::optional<Restaurant> result;
+    if (mysql_stmt_fetch(stmt) == 0)
+    {
+        result.emplace(rowId,
+                       std::string(nameBuf, nameLen),
+                       std::string(typeBuf, typeLen));
+    }
+
+    mysql_stmt_close(stmt);
+    return result;
+}
+
 int Database::addRestaurant(const std::string& name, const std::string& type)
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     std::string sql = "INSERT INTO restaurants (name, cuisine_type) VALUES ('"
         + escape(name) + "','" + escape(type) + "')";
     if (!executeQuery(sql)) return -1;
@@ -359,6 +461,7 @@ int Database::addRestaurant(const std::string& name, const std::string& type)
 
 bool Database::deleteRestaurant(int id)
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     bool result = executeQuery("DELETE FROM restaurants WHERE id=" + std::to_string(id));
     if (result) LOG_INFO("Restaurant deleted: #" + std::to_string(id));
     return result;
@@ -368,6 +471,7 @@ bool Database::deleteRestaurant(int id)
 std::vector<std::shared_ptr<Food>> Database::getFoodsByRestaurant(int restaurantId,
                                                                    const std::string& cuisineType)
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     std::vector<std::shared_ptr<Food>> foods;
     std::string sql = "SELECT id, name, price, description, preferences FROM foods WHERE restaurant_id="
         + std::to_string(restaurantId);
@@ -411,6 +515,7 @@ std::vector<std::shared_ptr<Food>> Database::getFoodsByRestaurant(int restaurant
 int Database::addFood(int restaurantId, const std::string& name, double price,
                       const std::string& description, const std::string& preferences)
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     std::ostringstream sql;
     sql << "INSERT INTO foods (restaurant_id, name, price, description, preferences) VALUES ("
         << restaurantId << ",'" << escape(name) << "'," << price << ",'"
@@ -422,11 +527,13 @@ int Database::addFood(int restaurantId, const std::string& name, double price,
 
 bool Database::deleteFood(int id)
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     return executeQuery("DELETE FROM foods WHERE id=" + std::to_string(id));
 }
 
 bool Database::updateFoodPrice(int id, double newPrice)
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     std::ostringstream sql;
     sql << "UPDATE foods SET price=" << newPrice << " WHERE id=" << id;
     return executeQuery(sql.str());
@@ -435,6 +542,7 @@ bool Database::updateFoodPrice(int id, double newPrice)
 // ---- Order operations (Prepared Statements for insert) ----
 int Database::createOrder(const Order& order)
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     const std::string sql =
         "INSERT INTO orders (user_id, restaurant_name, status, total_price, discount_pct, "
         "delivery_type, delivery_fee, payment_method, rider_name, rider_phone) "
@@ -529,6 +637,7 @@ int Database::createOrder(const Order& order)
 
 void Database::addOrderItems(int orderId, const std::vector<OrderItem>& items)
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     const std::string sql =
         "INSERT INTO order_items (order_id, food_name, food_price, food_description, "
         "quantity, preference, special_instruction) VALUES (?, ?, ?, ?, ?, ?, ?)";
@@ -593,6 +702,7 @@ void Database::addOrderItems(int orderId, const std::vector<OrderItem>& items)
 
 std::vector<Order> Database::getOrdersByUser(int userId, const std::vector<Restaurant>& restaurants)
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     std::vector<Order> orders;
     std::string sql = "SELECT id, user_id, restaurant_name, status, total_price, discount_pct, "
         "delivery_type, delivery_fee, payment_method, rider_name, rider_phone, rating, created_at "
@@ -669,6 +779,7 @@ std::vector<Order> Database::getOrdersByUser(int userId, const std::vector<Resta
 
 std::vector<Order> Database::getAllOrders(const std::vector<Restaurant>& /*restaurants*/)
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     std::vector<Order> orders;
     std::string sql = "SELECT o.id, o.user_id, u.username, o.restaurant_name, o.status, o.total_price, "
         "o.discount_pct, o.delivery_type, o.delivery_fee, o.payment_method, o.rider_name, "
@@ -709,6 +820,7 @@ std::vector<Order> Database::getAllOrders(const std::vector<Restaurant>& /*resta
 
 bool Database::updateOrderStatus(int orderId, OrderStatus status)
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     bool result = executeQuery("UPDATE orders SET status='" + orderStatusToString(status)
         + "' WHERE id=" + std::to_string(orderId));
     if (result) LOG_INFO("Order #" + std::to_string(orderId) + " status -> " + orderStatusToString(status));
@@ -717,6 +829,7 @@ bool Database::updateOrderStatus(int orderId, OrderStatus status)
 
 bool Database::deleteOrder(int orderId)
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     bool result = executeQuery("DELETE FROM orders WHERE id=" + std::to_string(orderId));
     if (result) LOG_INFO("Order #" + std::to_string(orderId) + " deleted");
     return result;
@@ -724,6 +837,7 @@ bool Database::deleteOrder(int orderId)
 
 bool Database::rateOrder(int orderId, double rating)
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     std::ostringstream sql;
     sql << "UPDATE orders SET rating=" << rating << " WHERE id=" << orderId;
     return executeQuery(sql.str());
@@ -732,6 +846,7 @@ bool Database::rateOrder(int orderId, double rating)
 // ---- Rider operations ----
 std::vector<Database::Rider> Database::getAllRiders()
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     std::vector<Rider> riders;
     MYSQL_RES* res = executeSelect("SELECT id, name, phone FROM riders");
     if (!res) return riders;
@@ -747,6 +862,7 @@ std::vector<Database::Rider> Database::getAllRiders()
 
 int Database::addRider(const std::string& name, const std::string& phone)
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     std::string sql = "INSERT INTO riders (name, phone) VALUES ('"
         + escape(name) + "','" + escape(phone) + "')";
     if (!executeQuery(sql)) return -1;
@@ -756,11 +872,13 @@ int Database::addRider(const std::string& name, const std::string& phone)
 
 bool Database::deleteRider(int id)
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     return executeQuery("DELETE FROM riders WHERE id=" + std::to_string(id));
 }
 
 Database::Rider Database::getRandomRider()
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     auto riders = getAllRiders();
     if (riders.empty()) throw OrderException("No riders available");
 
@@ -774,6 +892,7 @@ Database::Rider Database::getRandomRider()
 // ---- Analytics ----
 double Database::getTotalSpentByUser(int userId)
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     std::string sql = "SELECT COALESCE(SUM(total_price + delivery_fee), 0) FROM orders WHERE user_id="
         + std::to_string(userId);
     MYSQL_RES* res = executeSelect(sql);
@@ -787,6 +906,7 @@ double Database::getTotalSpentByUser(int userId)
 
 std::string Database::getFavoriteRestaurant(int userId)
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     std::string sql = "SELECT restaurant_name, COUNT(*) as cnt FROM orders WHERE user_id="
         + std::to_string(userId) + " GROUP BY restaurant_name ORDER BY cnt DESC LIMIT 1";
     MYSQL_RES* res = executeSelect(sql);
@@ -800,6 +920,7 @@ std::string Database::getFavoriteRestaurant(int userId)
 
 int Database::getTotalOrdersByUser(int userId)
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     std::string sql = "SELECT COUNT(*) FROM orders WHERE user_id=" + std::to_string(userId);
     MYSQL_RES* res = executeSelect(sql);
     if (!res) return 0;
@@ -813,6 +934,7 @@ int Database::getTotalOrdersByUser(int userId)
 // ---- Search & Filter ----
 std::vector<Restaurant> Database::searchRestaurants(const std::string& keyword)
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     std::vector<Restaurant> results;
     std::string sql = "SELECT id, name, cuisine_type FROM restaurants WHERE name LIKE '%"
         + escape(keyword) + "%' OR cuisine_type LIKE '%" + escape(keyword) + "%'";
@@ -833,6 +955,7 @@ std::vector<Restaurant> Database::searchRestaurants(const std::string& keyword)
 
 std::vector<std::shared_ptr<Food>> Database::searchFoodByPriceRange(double minPrice, double maxPrice)
 {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     std::vector<std::shared_ptr<Food>> results;
     std::ostringstream sql;
     sql << "SELECT f.id, f.name, f.price, f.description, r.cuisine_type "
@@ -857,4 +980,261 @@ std::vector<std::shared_ptr<Food>> Database::searchFoodByPriceRange(double minPr
     }
     mysql_free_result(res);
     return results;
+}
+
+// ============================================================
+// Sprint 3 — IOrderRepo (DTO / HTTP path)
+// ============================================================
+// These four methods back the Drogon order controllers via OrderService.
+// They live alongside the legacy createOrder(const Order&) / addOrderItems
+// helpers above, which are still the CLI's path and deliberately untouched.
+// The DTO path always populates orders.restaurant_id and order_items.food_id
+// (added by ensureColumn migration in initializeSchema); the legacy path
+// leaves those nullable columns as NULL.
+
+std::optional<fos::service::OrderDto> Database::findOrderById(int orderId)
+{
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    if (!conn_) return std::nullopt;
+
+    std::ostringstream headSql;
+    headSql << "SELECT id, user_id, COALESCE(restaurant_id, 0), "
+            << "COALESCE(restaurant_name, ''), status, total_price, "
+            << "COALESCE(delivery_type, ''), "
+            << "DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s') "
+            << "FROM orders WHERE id=" << orderId;
+    MYSQL_RES* res = executeSelect(headSql.str());
+    if (!res) return std::nullopt;
+
+    MYSQL_ROW row = mysql_fetch_row(res);
+    if (!row) { mysql_free_result(res); return std::nullopt; }
+
+    fos::service::OrderDto dto;
+    dto.orderId        = row[0] ? std::stoi(row[0]) : 0;
+    dto.customerId     = row[1] ? std::stoi(row[1]) : 0;
+    dto.restaurantId   = row[2] ? std::stoi(row[2]) : 0;
+    dto.restaurantName = row[3] ? row[3] : "";
+    dto.status         = row[4] ? row[4] : "";
+    dto.totalPrice     = row[5] ? std::stod(row[5]) : 0.0;
+    dto.deliveryOption = row[6] ? row[6] : "";
+    dto.createdAt      = row[7] ? row[7] : "";
+    mysql_free_result(res);
+
+    std::ostringstream itemSql;
+    itemSql << "SELECT COALESCE(food_id, 0), food_name, food_price, quantity "
+            << "FROM order_items WHERE order_id=" << orderId
+            << " ORDER BY id";
+    MYSQL_RES* ires = executeSelect(itemSql.str());
+    if (ires)
+    {
+        MYSQL_ROW irow;
+        while ((irow = mysql_fetch_row(ires)))
+        {
+            fos::service::OrderItemDto item;
+            item.foodId    = irow[0] ? std::stoi(irow[0]) : 0;
+            item.foodName  = irow[1] ? irow[1] : "";
+            item.unitPrice = irow[2] ? std::stod(irow[2]) : 0.0;
+            item.quantity  = irow[3] ? std::stoi(irow[3]) : 0;
+            dto.items.push_back(std::move(item));
+        }
+        mysql_free_result(ires);
+    }
+    return dto;
+}
+
+std::optional<int> Database::createOrder(const fos::service::OrderDto& order)
+{
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    if (!conn_) return std::nullopt;
+
+    // Wrap both inserts in a single transaction so a mid-write failure
+    // cannot leave behind an order header with no line items.
+    if (!executeQuery("START TRANSACTION"))
+    {
+        return std::nullopt;
+    }
+
+    // --- INSERT INTO orders ---
+    const std::string orderSql =
+        "INSERT INTO orders (user_id, restaurant_id, restaurant_name, status, "
+        "total_price, delivery_type) VALUES (?, ?, ?, ?, ?, ?)";
+    MYSQL_STMT* stmt = prepareStatement(orderSql);
+    if (!stmt) { executeQuery("ROLLBACK"); return std::nullopt; }
+
+    int userId       = order.customerId;
+    int restaurantId = order.restaurantId;
+    std::string restName = order.restaurantName;
+    std::string status   = order.status.empty() ? std::string("Pending") : order.status;
+    double totalPrice    = order.totalPrice;
+    std::string delivery = order.deliveryOption;
+
+    unsigned long restNameLen = static_cast<unsigned long>(restName.size());
+    unsigned long statusLen   = static_cast<unsigned long>(status.size());
+    unsigned long deliveryLen = static_cast<unsigned long>(delivery.size());
+
+    MYSQL_BIND bind[6];
+    std::memset(bind, 0, sizeof(bind));
+    bind[0].buffer_type = MYSQL_TYPE_LONG;
+    bind[0].buffer      = &userId;
+    bind[1].buffer_type = MYSQL_TYPE_LONG;
+    bind[1].buffer      = &restaurantId;
+    bind[2].buffer_type   = MYSQL_TYPE_STRING;
+    bind[2].buffer        = const_cast<char*>(restName.c_str());
+    bind[2].buffer_length = restNameLen;
+    bind[2].length        = &restNameLen;
+    bind[3].buffer_type   = MYSQL_TYPE_STRING;
+    bind[3].buffer        = const_cast<char*>(status.c_str());
+    bind[3].buffer_length = statusLen;
+    bind[3].length        = &statusLen;
+    bind[4].buffer_type = MYSQL_TYPE_DOUBLE;
+    bind[4].buffer      = &totalPrice;
+    bind[5].buffer_type   = MYSQL_TYPE_STRING;
+    bind[5].buffer        = const_cast<char*>(delivery.c_str());
+    bind[5].buffer_length = deliveryLen;
+    bind[5].length        = &deliveryLen;
+
+    if (mysql_stmt_bind_param(stmt, bind) != 0)
+    {
+        LOG_ERROR(std::string("DTO createOrder bind_param failed: ") + mysql_stmt_error(stmt));
+        mysql_stmt_close(stmt);
+        executeQuery("ROLLBACK");
+        return std::nullopt;
+    }
+    if (mysql_stmt_execute(stmt) != 0)
+    {
+        LOG_ERROR(std::string("DTO createOrder (orders) failed: ") + mysql_stmt_error(stmt));
+        mysql_stmt_close(stmt);
+        executeQuery("ROLLBACK");
+        return std::nullopt;
+    }
+    int newOrderId = static_cast<int>(mysql_stmt_insert_id(stmt));
+    mysql_stmt_close(stmt);
+
+    // --- INSERT order_items (one statement per line item) ---
+    const std::string itemSql =
+        "INSERT INTO order_items (order_id, food_id, food_name, food_price, quantity) "
+        "VALUES (?, ?, ?, ?, ?)";
+    for (const auto& item : order.items)
+    {
+        MYSQL_STMT* istmt = prepareStatement(itemSql);
+        if (!istmt) { executeQuery("ROLLBACK"); return std::nullopt; }
+
+        int ioid = newOrderId;
+        int ifid = item.foodId;
+        std::string iname = item.foodName;
+        double iprice = item.unitPrice;
+        int iqty = item.quantity;
+        unsigned long inameLen = static_cast<unsigned long>(iname.size());
+
+        MYSQL_BIND ib[5];
+        std::memset(ib, 0, sizeof(ib));
+        ib[0].buffer_type = MYSQL_TYPE_LONG;
+        ib[0].buffer      = &ioid;
+        ib[1].buffer_type = MYSQL_TYPE_LONG;
+        ib[1].buffer      = &ifid;
+        ib[2].buffer_type   = MYSQL_TYPE_STRING;
+        ib[2].buffer        = const_cast<char*>(iname.c_str());
+        ib[2].buffer_length = inameLen;
+        ib[2].length        = &inameLen;
+        ib[3].buffer_type = MYSQL_TYPE_DOUBLE;
+        ib[3].buffer      = &iprice;
+        ib[4].buffer_type = MYSQL_TYPE_LONG;
+        ib[4].buffer      = &iqty;
+
+        if (mysql_stmt_bind_param(istmt, ib) != 0)
+        {
+            LOG_ERROR(std::string("DTO createOrder item bind_param failed: ") + mysql_stmt_error(istmt));
+            mysql_stmt_close(istmt);
+            executeQuery("ROLLBACK");
+            return std::nullopt;
+        }
+        if (mysql_stmt_execute(istmt) != 0)
+        {
+            LOG_ERROR(std::string("DTO createOrder (order_items) failed: ") + mysql_stmt_error(istmt));
+            mysql_stmt_close(istmt);
+            executeQuery("ROLLBACK");
+            return std::nullopt;
+        }
+        mysql_stmt_close(istmt);
+    }
+
+    if (!executeQuery("COMMIT"))
+    {
+        executeQuery("ROLLBACK");
+        return std::nullopt;
+    }
+    LOG_INFO("DTO order #" + std::to_string(newOrderId) +
+             " created for user #" + std::to_string(userId));
+    return newOrderId;
+}
+
+std::vector<fos::service::OrderDto> Database::listOrdersByCustomer(int customerId)
+{
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    std::vector<fos::service::OrderDto> out;
+    if (!conn_) return out;
+
+    // Two-phase fetch: collect ids under the lock, then rehydrate each
+    // full OrderDto via findOrderById. N+1 is known and acceptable at
+    // Sprint 3 scale — revisit with a JOIN if list sizes ever grow.
+    std::ostringstream sql;
+    sql << "SELECT id FROM orders WHERE user_id=" << customerId
+        << " ORDER BY created_at DESC";
+    MYSQL_RES* res = executeSelect(sql.str());
+    if (!res) return out;
+
+    std::vector<int> ids;
+    MYSQL_ROW row;
+    while ((row = mysql_fetch_row(res)))
+    {
+        if (row[0]) ids.push_back(std::stoi(row[0]));
+    }
+    mysql_free_result(res);
+
+    out.reserve(ids.size());
+    for (int id : ids)
+    {
+        auto dto = findOrderById(id);
+        if (dto.has_value()) out.push_back(std::move(*dto));
+    }
+    return out;
+}
+
+std::vector<fos::service::OrderDto> Database::listAllOrders()
+{
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    std::vector<fos::service::OrderDto> out;
+    if (!conn_) return out;
+
+    MYSQL_RES* res = executeSelect(
+        "SELECT id FROM orders ORDER BY created_at DESC");
+    if (!res) return out;
+
+    std::vector<int> ids;
+    MYSQL_ROW row;
+    while ((row = mysql_fetch_row(res)))
+    {
+        if (row[0]) ids.push_back(std::stoi(row[0]));
+    }
+    mysql_free_result(res);
+
+    out.reserve(ids.size());
+    for (int id : ids)
+    {
+        auto dto = findOrderById(id);
+        if (dto.has_value()) out.push_back(std::move(*dto));
+    }
+    return out;
+}
+
+bool Database::updateOrderStatus(int orderId, const std::string& newStatus)
+{
+    // Delegate to the legacy enum-based method after converting.
+    OrderStatus enumStatus = stringToOrderStatus(newStatus);
+    return updateOrderStatus(orderId, enumStatus);
+}
+
+bool Database::updateOrderRating(int orderId, double rating)
+{
+    return rateOrder(orderId, rating);
 }

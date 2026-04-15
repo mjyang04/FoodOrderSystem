@@ -16,3 +16,20 @@ LOG_FILE=
 APP_MAX_ORDER_ITEMS=20
 APP_RATING_MIN=1.0
 APP_RATING_MAX=5.0
+
+# HTTP API server (fos_api binary, ignored by fos_cli)
+# HTTP_HOST binds the listener; use 0.0.0.0 inside Docker, 127.0.0.1 for local-only
+HTTP_HOST=0.0.0.0
+HTTP_PORT=8080
+# HTTP_THREADS is pinned to 1 in Sprint 1 because the legacy Database singleton
+# is not yet thread-safe. Raise it once the repository layer migrates to the
+# Drogon DbClient pool (Sprint 2).
+HTTP_THREADS=1
+
+# JWT authentication (fos_api only)
+# JWT_SECRET must be a long, random, high-entropy string in any real
+# deployment. Generate one with e.g.:
+#   openssl rand -hex 32
+# If JWT_SECRET is left empty, /api/auth/login returns JWT_NOT_CONFIGURED.
+JWT_SECRET=
+JWT_TTL_HOURS=24

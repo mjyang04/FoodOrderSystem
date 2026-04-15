@@ -1,6 +1,8 @@
 #ifndef DATABASE_H
 #define DATABASE_H
 
+#include <mutex>
+#include <optional>
 #include <string>
 #include <vector>
 #include <memory>
@@ -9,9 +11,16 @@
 #include "../core/Restaurant.h"
 #include "../core/Order.h"
 #include "../model/Food.h"
+#include "IUserRepo.h"
+#include "IRestaurantRepo.h"
+#include "IOrderRepo.h"
 
-// Singleton MySQL database manager
-class Database
+// Singleton MySQL database manager. Implements IUserRepo, IRestaurantRepo
+// and IOrderRepo so the service layer can be constructed against either the
+// real singleton or an in-memory fake (see tests/fakes/*). See Sprint 2.5
+// H-DI and Sprint 3 in plan/sprint_2_5_hardening.md / plan/sprint_3_orders.md
+// for the rationale.
+class Database : public IUserRepo, public IRestaurantRepo, public IOrderRepo
 {
 public:
     static Database& instance();
@@ -21,32 +30,36 @@ public:
                  const std::string& password, const std::string& dbName,
                  unsigned int port = 3306);
     void disconnect();
-    bool isConnected() const;
+    bool isConnected() const override;
 
     // Schema initialization
     void initializeSchema();
 
     // ---- User operations ----
     bool createUser(const std::string& username, const std::string& password,
-                    UserRole role = UserRole::CUSTOMER);
-    User findUserByUsername(const std::string& username);
-    bool userExists(const std::string& username);
+                    UserRole role = UserRole::CUSTOMER) override;
+    User findUserByUsername(const std::string& username) override;
+    bool userExists(const std::string& username) override;
     std::vector<User> getAllUsers();
 
     // ---- Restaurant operations ----
-    std::vector<Restaurant> getAllRestaurants();
+    std::vector<Restaurant> getAllRestaurants() override;
+    std::optional<Restaurant> findRestaurantById(int id) override;
     int addRestaurant(const std::string& name, const std::string& type);
     bool deleteRestaurant(int id);
 
     // ---- Food operations ----
     std::vector<std::shared_ptr<Food>> getFoodsByRestaurant(int restaurantId,
-                                                            const std::string& cuisineType);
+                                                            const std::string& cuisineType) override;
     int addFood(int restaurantId, const std::string& name, double price,
                 const std::string& description, const std::string& preferences);
     bool deleteFood(int id);
     bool updateFoodPrice(int id, double newPrice);
 
-    // ---- Order operations ----
+    // ---- Order operations (legacy CLI path) ----
+    // Unhide the IOrderRepo::createOrder overload so the legacy overload
+    // below doesn't trigger -Woverloaded-virtual.
+    using IOrderRepo::createOrder;
     int createOrder(const Order& order);
     void addOrderItems(int orderId, const std::vector<OrderItem>& items);
     std::vector<Order> getOrdersByUser(int userId, const std::vector<Restaurant>& restaurants);
@@ -54,6 +67,20 @@ public:
     bool updateOrderStatus(int orderId, OrderStatus status);
     bool deleteOrder(int orderId);
     bool rateOrder(int orderId, double rating);
+
+    // ---- Order operations (Sprint 3 DTO / IOrderRepo path) ----
+    // These four methods satisfy IOrderRepo and power the HTTP API. They
+    // live side-by-side with the legacy createOrder(const Order&) above —
+    // the CLI still wants the rich Order model, but the HTTP path only
+    // needs the minimal OrderDto surface.
+    std::optional<int> createOrder(const fos::service::OrderDto& order) override;
+    std::optional<fos::service::OrderDto> findOrderById(int orderId) override;
+    std::vector<fos::service::OrderDto> listOrdersByCustomer(int customerId) override;
+    std::vector<fos::service::OrderDto> listAllOrders() override;
+
+    // Sprint 5: IOrderRepo overrides for string-based status + rating.
+    bool updateOrderStatus(int orderId, const std::string& newStatus) override;
+    bool updateOrderRating(int orderId, double rating) override;
 
     // ---- Rider operations ----
     struct Rider { int id; std::string name; std::string phone; };
@@ -78,6 +105,7 @@ private:
     Database& operator=(const Database&) = delete;
 
     MYSQL* conn_ = nullptr;
+    mutable std::recursive_mutex mutex_;
 
     // Helper: execute query and handle errors
     bool executeQuery(const std::string& query);

@@ -1,0 +1,118 @@
+#include "RestaurantController.h"
+
+#include "api/JsonEnvelope.h"
+#include "core/Restaurant.h"
+#include "model/Food.h"
+#include "service/DefaultServices.h"
+#include "service/RestaurantService.h"
+
+// Sprint 2.5 (L-CONTROLLER-NS): targeted declarations instead of
+// `using namespace drogon;`. This TU only needs the two request/response
+// pointer aliases at the signature level.
+using drogon::HttpRequestPtr;
+using drogon::HttpResponsePtr;
+using fos::api::errorResponse;
+using fos::api::statusForError;
+using fos::api::successResponse;
+using fos::service::defaultRestaurantService;
+
+namespace {
+
+Json::Value restaurantToJson(const Restaurant& r)
+{
+    Json::Value j;
+    j["id"] = r.getId();
+    j["name"] = r.getName();
+    j["cuisine_type"] = r.getType();
+    return j;
+}
+
+Json::Value foodToJson(const Food& f)
+{
+    Json::Value j;
+    j["id"] = f.getId();
+    j["name"] = f.getName();
+    j["price"] = f.getPrice();
+    j["description"] = f.getDescription();
+    j["type"] = f.getTypeName();
+
+    Json::Value prefs(Json::arrayValue);
+    for (const auto& p : f.getPreferences())
+    {
+        prefs.append(p);
+    }
+    j["preferences"] = prefs;
+    return j;
+}
+
+} // namespace
+
+void RestaurantController::listAll(
+    const HttpRequestPtr& req,
+    std::function<void(const HttpResponsePtr&)>&& callback)
+{
+    (void)req;
+
+    // Sprint 2.5 (M-LISTALL-PROTOCOL): listAll() now returns Result so
+    // "no rows yet" (200 with []) is distinguishable from "DB unreachable"
+    // (503). Keep the "no rows" success path returning the same envelope
+    // shape it always did — clients that depended on an empty list from
+    // 200 still work.
+    auto result = defaultRestaurantService().listAll();
+    if (!result)
+    {
+        callback(errorResponse(
+            statusForError(result.error().code),
+            result.error().code,
+            result.error().message));
+        return;
+    }
+
+    const auto& restaurants = result.value();
+    Json::Value arr(Json::arrayValue);
+    for (const auto& r : restaurants)
+    {
+        arr.append(restaurantToJson(r));
+    }
+
+    Json::Value data;
+    data["restaurants"] = arr;
+    data["count"] = static_cast<int>(restaurants.size());
+    callback(successResponse(data));
+}
+
+void RestaurantController::getMenu(
+    const HttpRequestPtr& req,
+    std::function<void(const HttpResponsePtr&)>&& callback,
+    int restaurantId)
+{
+    (void)req;
+
+    auto result = defaultRestaurantService().getMenu(restaurantId);
+    if (!result)
+    {
+        callback(errorResponse(
+            statusForError(result.error().code),
+            result.error().code,
+            result.error().message));
+        return;
+    }
+
+    const auto& menu = result.value();
+    Json::Value foods(Json::arrayValue);
+    for (const auto& food : menu.foods)
+    {
+        if (food)
+        {
+            foods.append(foodToJson(*food));
+        }
+    }
+
+    Json::Value data;
+    data["restaurant_id"] = menu.restaurantId;
+    data["restaurant_name"] = menu.restaurantName;
+    data["cuisine_type"] = menu.cuisineType;
+    data["foods"] = foods;
+    data["count"] = static_cast<int>(menu.foods.size());
+    callback(successResponse(data));
+}

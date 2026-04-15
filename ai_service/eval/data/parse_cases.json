@@ -1,0 +1,79 @@
+[
+  {
+    "id": "p01",
+    "text": "two kung pao chicken",
+    "llm_stub": {
+      "restaurant_name": "Sichuan Delight",
+      "items": [{"food_name": "Kung Pao Chicken", "quantity": 2}]
+    },
+    "expected": {
+      "restaurant_id": 1,
+      "item_count": 1,
+      "total": 24.0,
+      "min_confidence": 0.9
+    }
+  },
+  {
+    "id": "p02",
+    "text": "one mapo tofu and one dan dan noodles",
+    "llm_stub": {
+      "restaurant_name": "Sichuan Delight",
+      "items": [
+        {"food_name": "Mapo Tofu", "quantity": 1},
+        {"food_name": "Dan Dan Noodles", "quantity": 1}
+      ]
+    },
+    "expected": {
+      "restaurant_id": 1,
+      "item_count": 2,
+      "total": 16.0,
+      "min_confidence": 0.9
+    }
+  },
+  {
+    "id": "p03",
+    "text": "a whole roast duck from cantonese kitchen",
+    "llm_stub": {
+      "restaurant_name": "Cantonese Kitchen",
+      "delivery_option": "Standard",
+      "items": [{"food_name": "Roast Duck", "quantity": 1}]
+    },
+    "expected": {
+      "restaurant_id": 3,
+      "item_count": 1,
+      "total": 20.0,
+      "min_confidence": 0.9
+    }
+  },
+  {
+    "id": "p04",
+    "text": "three pasta please",
+    "llm_stub": {
+      "restaurant_name": "La Dolce Vita",
+      "items": [{"food_name": "Pasta", "quantity": 3}]
+    },
+    "expected": {
+      "restaurant_id": 5,
+      "item_count": 1,
+      "total": 30.0,
+      "min_confidence": 0.9
+    }
+  },
+  {
+    "id": "p05",
+    "text": "dim sum and roast duck",
+    "llm_stub": {
+      "restaurant_name": "Cantonese Kitchen",
+      "items": [
+        {"food_name": "Dim Sum", "quantity": 1},
+        {"food_name": "Roast Duck", "quantity": 1}
+      ]
+    },
+    "expected": {
+      "restaurant_id": 3,
+      "item_count": 2,
+      "total": 30.0,
+      "min_confidence": 0.9
+    }
+  }
+]

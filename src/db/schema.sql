@@ -40,9 +40,13 @@ CREATE TABLE IF NOT EXISTS riders (
 );
 
 -- Orders
+-- Sprint 3 added restaurant_id: nullable so the legacy CLI path (which only
+-- knows restaurant_name) keeps working, but the HTTP path always populates
+-- it so OrderDto round-trips cleanly.
 CREATE TABLE IF NOT EXISTS orders (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
+    restaurant_id INT NULL,
     restaurant_name VARCHAR(100),
     status ENUM('Pending', 'Confirmed', 'Preparing', 'Delivering', 'Delivered', 'Cancelled') DEFAULT 'Pending',
     total_price DECIMAL(10, 2) DEFAULT 0,
@@ -54,20 +58,26 @@ CREATE TABLE IF NOT EXISTS orders (
     rider_phone VARCHAR(20),
     rating DOUBLE DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id)
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (restaurant_id) REFERENCES restaurants(id)
 );
 
 -- Order line items
+-- Sprint 3 added food_id: same nullable pattern — legacy CLI orders leave
+-- it NULL (food identity is already captured by food_name/food_price
+-- snapshots), HTTP orders always populate it.
 CREATE TABLE IF NOT EXISTS order_items (
     id INT AUTO_INCREMENT PRIMARY KEY,
     order_id INT NOT NULL,
+    food_id INT NULL,
     food_name VARCHAR(100) NOT NULL,
     food_price DECIMAL(10, 2) NOT NULL,
     food_description TEXT,
     quantity INT NOT NULL,
     preference VARCHAR(100) DEFAULT '',
     special_instruction TEXT,
-    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
+    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+    FOREIGN KEY (food_id) REFERENCES foods(id)
 );
 
 -- ============================================================

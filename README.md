@@ -1,163 +1,165 @@
 # Food Order System
 
-A full-featured food ordering console application built with modern C++17, featuring MySQL database integration, user authentication with password hashing, role-based access control, and an admin management panel.
+A full-stack food ordering system with a C++17 REST API, Python AI microservice (PyTorch + LLM), MySQL database, JWT authentication, and a legacy interactive CLI.
+
+## Architecture
+
+```
+Client (curl / Postman / web UI)
+        |   Authorization: Bearer <jwt>
+        v
++-----------------------------------------------+
+|  fos_api  (C++17, Drogon)  :8080              |
+|                                                |
+|  JwtAuthFilter -> AuthContext { userId, role }  |
+|       |                                        |
+|       +-- AuthController     POST /api/auth/*  |
+|       +-- RestaurantController GET /api/restaurants |
+|       +-- OrderController    POST/GET /api/orders  |
+|       +-- AiController       /api/ai/*  ----+  |
+|       +-- HealthController   GET /health    |  |
++--------------------------------------+------+--+
+                                       | HTTP (loopback)
+                                       | X-User-Id header
+                                       v
++-----------------------------------------------+
+|  fos_ai  (Python 3.11, FastAPI)  :8000        |
+|                                                |
+|  POST /ai/parse-order -> parser.py -> LLM     |
+|  GET  /ai/search      -> search.py -> PyTorch |
+|  GET  /ai/recommend   -> recommender.py       |
+|  POST /ai/chat        -> chat_engine.py       |
+|       ReAct loop, 4 tools, SSE streaming      |
+|                                                |
+|  Startup: load MiniLM model, encode menu,     |
+|           init SessionStore (30-min TTL)      |
++-----------------------------------------------+
+        |   read-only SELECT
+        v
++-----------------------------------------------+
+|  MySQL  food_order_system                      |
+|  users, restaurants, foods, orders, riders     |
++-----------------------------------------------+
+```
+
+**Trust boundary:** JWT validation happens in C++ (`JwtAuthFilter`). The Python service binds to loopback only and trusts the `X-User-Id` header forwarded by `AiController`.
 
 ## Features
 
-### Customer Features
-- **Browse Restaurants** - View 14 restaurants across 10 cuisine types
-- **Place Orders** - Select food items with preferences, special instructions, and delivery options
-- **Order Management** - View, reorder, modify, and delete past orders
-- **Order Status Tracking** - Track orders through 6 stages: Pending -> Confirmed -> Preparing -> Delivering -> Delivered / Cancelled
-- **Rating System** - Rate completed orders (1.0 - 5.0)
-- **Search & Filter** - Search restaurants by keyword, filter food by price range
-- **Personal Analytics** - View total orders, total spent, and favorite restaurant
+### REST API (fos_api)
+- **Authentication** — register, login (JWT), role-based access (customer/admin)
+- **Restaurants** — list all, get by ID with menu
+- **Orders** — create, list (own/all for admin), get by ID
+- **AI proxy** — forwards to fos_ai with JWT-extracted userId
 
-### Admin Features
-- **Manage Restaurants** - Add / delete restaurants
-- **Manage Menu** - Add / delete food items, update prices
-- **Manage Riders** - Add / delete delivery riders
-- **Manage Users** - View all users, create admin accounts
-- **View All Orders** - Monitor all system orders
+### AI Service (fos_ai)
+- **Parse Order** — natural language to structured order draft via LLM tool-calling (Anthropic/OpenAI)
+- **Semantic Search** — encode query with MiniLM, cosine similarity against pre-encoded menu corpus
+- **Recommendations** — content-based (user profile from order history) with cold-start popularity fallback
+- **Conversational Chat** — multi-turn agent with ReAct-style tool loop over `search_menu`, `create_order_draft`, `check_order_status`, `get_recommendations`; SSE streaming; in-memory session store with TTL eviction
+
+### Legacy CLI (fos_cli)
+- Interactive console with menus, order management, admin panel
+- Same MySQL backend as the REST API
 
 ### Technical Highlights
-- **MySQL Database** - Relational data storage with foreign keys and cascading deletes
-- **Prepared Statements** - `mysql_stmt_*` API for SQL injection prevention
-- **Password Hashing** - SHA-256 with random salt (no plaintext passwords)
-- **Factory + Registry Pattern** - Extensible food type creation without if-else chains
-- **Smart Pointers** - `unique_ptr` / `shared_ptr` for automatic memory management (zero leaks)
-- **Custom Exceptions** - Typed exception hierarchy (`DatabaseException`, `AuthException`, `OrderException`)
-- **Logging System** - 4-level logger (DEBUG/INFO/WARN/ERROR) with file output support
-- **Config System** - File-based config with environment variable override
-- **Unit Tests** - 55 GoogleTest cases covering core logic (HashUtil, Food, Delivery, Order, Config)
-- **Input Validation** - Robust input handling, no crashes on invalid input
-- **Cross-platform** - Works on macOS, Linux, and Windows
-
-## OOP Design
-
-### Class Hierarchy
-
-```
-Food (abstract)
-  |-- ChineseFood
-  |     |-- SichuanCuisine
-  |     |-- CantoneseCuisine
-  |-- WesternFood
-  |     |-- ItalianCuisine
-  |     |-- FrenchCuisine
-  |-- ArabicFood
-  |     |-- LebaneseCuisine
-  |     |-- MoroccanCuisine
-  |-- MexicanFood
-  |     |-- TexMexCuisine
-  |     |-- TraditionalMexicanCuisine
-  |-- JapaneseFood
-        |-- SushiCuisine
-        |-- RamenCuisine
-
-Delivery (abstract)
-  |-- DirectDelivery
-  |-- StandardDelivery
-  |-- SaverDelivery
-```
-
-### Design Patterns
-
-| Pattern | Class | Purpose |
-|---------|-------|---------|
-| **Factory + Registry** | `FoodFactory` | Creates Food objects by cuisine type string, avoids large if-else |
-| **Singleton** | `Database`, `Logger`, `Config` | Single MySQL connection, centralized logging and config |
-| **Strategy** | `Delivery` | Interchangeable delivery options with different fees and times |
-| **Polymorphism** | `Food`, `Delivery` | Virtual `display()`, `clone()`, `getTypeName()` across all types |
-| **RAII** | Smart pointers | `unique_ptr<Delivery>` in Order, `shared_ptr<Food>` in Restaurant |
-| **Exception Hierarchy** | `Exceptions.h` | Typed exceptions for DB, Auth, Order, Validation errors |
-
-### Database Schema (ER Diagram)
-
-```
-users ----< orders ----< order_items
-              |
-restaurants --+
-              |
-riders -------+
-```
-
-- `users` - Authentication with hashed passwords and roles (customer/admin)
-- `restaurants` - Name and cuisine type
-- `foods` - Menu items linked to restaurants (with preferences)
-- `orders` - Order metadata, status, delivery, payment, rating
-- `order_items` - Individual food items within an order
-- `riders` - Delivery rider contact information
+- **Dual LLM provider** — Anthropic SDK + OpenAI API behind a unified `LlmClient` Protocol
+- **Raw PyTorch embeddings** — mean-pooling + L2-normalization, no `sentence-transformers` wrapper
+- **Microservice architecture** — C++ gateway + Python ML service, separate failure domains
+- **Prepared statements** — `mysql_stmt_*` for SQL injection prevention
+- **JWT auth** — HS256 tokens, configurable TTL
+- **208 tests** — 101 GoogleTest (C++) + 107 pytest (Python) + 4 quality-gated eval cases (Hit@5 ≥ 0.80, MRR ≥ 0.60)
 
 ## Prerequisites
 
 - **C++ Compiler** with C++17 support (GCC 7+, Clang 5+, MSVC 2017+)
-- **CMake** 3.16 or later
+- **CMake** 3.16+
 - **MySQL Server** 5.7+ or 8.0+
-- **MySQL Client Library** (`libmysqlclient-dev`)
-
-### Install Dependencies
-
-```bash
-# macOS
-brew install cmake mysql-client
-
-# Ubuntu / Debian
-sudo apt install cmake libmysqlclient-dev mysql-server
-
-# CentOS / RHEL
-sudo yum install cmake mysql-devel mysql-server
-```
+- **Python** 3.11+ with [uv](https://docs.astral.sh/uv/)
+- **Drogon** framework (fetched automatically by CMake if not found)
 
 ## Quick Start
 
-### 1. Setup Database
+### 1. Database Setup
 
 ```bash
-# Start MySQL server (if not running)
-# macOS: brew services start mysql
-# Linux: sudo systemctl start mysql
-
-# Create database and load schema + seed data
 mysql -u root -p -e "CREATE DATABASE food_order_system;"
 mysql -u root -p food_order_system < src/db/schema.sql
 ```
 
-### 2. Build
+### 2. Build C++ (fos_api + fos_cli + tests)
 
 ```bash
 mkdir build && cd build
 cmake .. -DCMAKE_BUILD_TYPE=Release
 cmake --build .
+ctest --output-on-failure   # 83 tests
 ```
 
-### 3. Run Tests
+### 3. Install Python AI Service
 
 ```bash
-cd build
-ctest --output-on-failure
+cd ai_service
+uv sync                     # install dependencies
+uv run pytest tests/ -q           # 107 unit tests
+uv run pytest eval/ -m eval -s    # 4 quality-gated eval cases (Hit@5, MRR)
 ```
 
-55 unit tests cover: SHA-256 hashing, Food/FoodFactory, Delivery, Order logic, Config parser.
-
-### 4. Run
+### 4. Configure
 
 ```bash
-# Set database credentials
-export DB_HOST=127.0.0.1
-export DB_USER=root
-export DB_PASS=yourpassword
-export DB_NAME=food_order_system
+cp config.example config
 
-# Run the application
-./FoodOrderSystem
+# Edit config with your DB password and JWT secret:
+#   DB_PASS=yourpassword
+#   JWT_SECRET=$(openssl rand -hex 32)
+
+# For AI features, set one of:
+export ANTHROPIC_API_KEY=sk-ant-...
+# or
+export LLM_PROVIDER=openai
+export OPENAI_API_KEY=sk-...
 ```
 
-Or use the setup script:
+### 5. Run Both Services
 
 ```bash
-chmod +x setup.sh
-./setup.sh
+# Terminal 1: Python AI service
+cd ai_service
+uv run uvicorn fos_ai.main:app --host 127.0.0.1 --port 8000
+
+# Terminal 2: C++ REST API
+./build/fos_api
+```
+
+### 6. Try It
+
+```bash
+# Health check
+curl http://localhost:8080/health
+
+# Register + login
+curl -X POST http://localhost:8080/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"username":"demo","password":"Demo1234!"}'
+
+TOKEN=$(curl -s -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"demo","password":"Demo1234!"}' | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['token'])")
+
+# Semantic search
+curl "http://localhost:8080/api/ai/search?q=spicy+chicken&limit=3" \
+  -H "Authorization: Bearer $TOKEN"
+
+# Recommendations (cold start)
+curl "http://localhost:8080/api/ai/recommend?limit=5" \
+  -H "Authorization: Bearer $TOKEN"
+
+# Parse order (requires LLM API key)
+curl -X POST http://localhost:8080/api/ai/parse-order \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"text":"two kung pao chicken and one mapo tofu","restaurant_hint_id":1}'
 ```
 
 ## Environment Variables
@@ -169,60 +171,88 @@ chmod +x setup.sh
 | `DB_PASS` | *(empty)* | MySQL password |
 | `DB_NAME` | `food_order_system` | Database name |
 | `DB_PORT` | `3306` | MySQL server port |
+| `JWT_SECRET` | *(empty)* | HS256 signing key (required for auth) |
+| `JWT_TTL_HOURS` | `24` | Token expiry in hours |
+| `HTTP_HOST` | `0.0.0.0` | fos_api bind address |
+| `HTTP_PORT` | `8080` | fos_api listen port |
+| `AI_SERVICE_URL` | `http://127.0.0.1:8000` | fos_ai base URL for proxy |
+| `LLM_PROVIDER` | `anthropic` | `anthropic` or `openai` |
+| `ANTHROPIC_API_KEY` | *(empty)* | Anthropic API key |
+| `OPENAI_API_KEY` | *(empty)* | OpenAI API key (or compatible endpoint) |
+| `ANTHROPIC_MODEL` | `claude-haiku-4-5-20251001` | Anthropic model ID |
+| `OPENAI_MODEL` | `gpt-4o-mini` | OpenAI model ID |
 
 ## Project Structure
 
 ```
 FoodOrderSystem/
-  CMakeLists.txt              # Build configuration
-  setup.sh                    # One-click setup script
-  config.example              # Example config file
-  README.md                   # This file
+  CMakeLists.txt              # C++ build (fos_api, fos_cli, fos_tests, fos_ai_tests)
+  config.example              # Config template
   src/
-    main.cpp                  # Entry point (Config + Logger init)
-    ui/
-      Color.h                 # ANSI terminal colors
-    model/
-      Food.h/cpp              # Food base + 10 subclasses
-      FoodFactory.h/cpp       # Factory + Registry
-      Delivery.h/cpp          # 3 delivery strategies
-    core/
-      FoodOrderSystem.h/cpp   # Main business logic
-      Order.h/cpp             # Order with 6-state tracking
-      Restaurant.h/cpp        # Restaurant with menu
-    auth/
-      User.h/cpp              # User model with roles
-      LoginSystem.h/cpp       # Login + Registration flow
-      HashUtil.h/cpp          # SHA-256 hashing
-    db/
-      Database.h/cpp          # MySQL singleton (prepared statements)
-      schema.sql              # DDL + seed data
-    util/
-      InputHelper.h/cpp       # Input validation utilities
-      Exceptions.h            # Custom exception hierarchy
-      Logger.h                # Logging (DEBUG/INFO/WARN/ERROR)
-      Config.h                # Config file + env var reader
-  tests/
-    test_hashutil.cpp         # SHA-256 + salt tests
-    test_food.cpp             # Food classes + FoodFactory
-    test_delivery.cpp         # Delivery types + factory
-    test_order.cpp            # Order logic + pricing
-    test_config.cpp           # Config parser tests
+    main.cpp                  # CLI entry point
+    api/
+      main_api.cpp            # REST API entry point (Drogon)
+      AuthContext.h/cpp        # JWT claims wrapper
+      JsonEnvelope.h           # Unified JSON response envelope
+      JsonBody.h               # Request body validation helpers
+      controllers/
+        HealthController.h/cc  # GET /health, POST /api/ai/chat (501 stub)
+        AuthController.h/cc    # POST /api/auth/register, /login, GET /me
+        RestaurantController.h/cc  # GET /api/restaurants
+        OrderController.h/cc   # POST/GET /api/orders
+        AiController.h/cc      # AI proxy -> fos_ai (Sprint 4)
+      filters/
+        JwtAuthFilter.h/cc     # JWT Bearer validation
+    service/
+      ErrorCodes.h             # All error code constants (incl. AI codes)
+      AuthService.h/cpp        # User registration + login
+      OrderService.h/cpp       # Order CRUD with transactions
+      RestaurantService.h/cpp  # Restaurant queries
+      JwtService.h/cpp         # JWT sign + verify (HS256)
+    model/ core/ auth/ db/ util/  # Domain layer (see CLAUDE.md)
+  ai_service/                  # Python AI microservice
+    pyproject.toml             # uv-managed, Python 3.11+
+    src/fos_ai/
+      main.py                  # FastAPI app with lifespan
+      config.py                # pydantic-settings
+      deps.py                  # Singletons (embedder, corpus, LLM client)
+      schemas.py               # Request/response models
+      ml/
+        embedding.py           # PyTorch MiniLM embedder (384-dim)
+        corpus.py              # Pre-encoded menu corpus
+      services/
+        llm_client.py          # Dual LLM provider (Anthropic + OpenAI)
+        parser.py              # NL -> OrderDraft via tool-calling
+        search.py              # Cosine top-k semantic search
+        recommender.py         # Content-based + cold-start fallback
+      routers/
+        health.py parse.py search.py recommend.py
+      db/
+        menu_repo.py           # Read-only MySQL menu access
+    tests/                     # 60 pytest cases
+  tests/                       # 83 GoogleTest cases (C++)
+  scripts/
+    smoke_test_sprint4.sh      # E2E smoke test script
+  plan/                        # Sprint planning documents
 ```
+
+## Design Patterns
+
+| Pattern | Location | Purpose |
+|---------|----------|---------|
+| Factory + Registry | `FoodFactory` | Create Food by cuisine type string |
+| Singleton | `Database`, `Logger`, `Config` | Single instances, thread-safe access |
+| Strategy | `Delivery` hierarchy | Interchangeable delivery options |
+| Protocol | `LlmClient` | Provider-agnostic LLM abstraction |
+| Proxy | `AiController` | C++ gateway forwards to Python AI service |
+| Content-Based Filtering | `recommender.py` | User profile from order history embeddings |
+| Repository | `menu_repo.py` | Data access abstraction for menu |
 
 ## Seed Data
 
-The schema includes seed data for immediate use:
-
-- **14 Restaurants** across 10 cuisine types (Sichuan, Cantonese, Italian, French, Lebanese, Moroccan, TexMex, Traditional Mexican, Sushi, Ramen)
-- **70 Food Items** with prices, descriptions, and preferences
-- **10 Delivery Riders** with contact information
-
-Register a new account through the application to get started. The first user can be promoted to admin via:
-
-```sql
-UPDATE users SET role='admin' WHERE username='your_username';
-```
+- **14 restaurants** across 10 cuisine types
+- **70 food items** with prices, descriptions, and preferences
+- **10 delivery riders**
 
 ## License
 

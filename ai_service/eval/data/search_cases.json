@@ -1,0 +1,14 @@
+[
+  {"id": "s01", "query": "spicy chicken", "relevant_food_ids": [1]},
+  {"id": "s02", "query": "tofu", "relevant_food_ids": [2]},
+  {"id": "s03", "query": "noodles", "relevant_food_ids": [3]},
+  {"id": "s04", "query": "cantonese dim sum", "relevant_food_ids": [11]},
+  {"id": "s05", "query": "roast duck", "relevant_food_ids": [12]},
+  {"id": "s06", "query": "italian pasta", "relevant_food_ids": [21]},
+  {"id": "s07", "query": "sichuan style dish", "relevant_food_ids": [1, 2, 3]},
+  {"id": "s08", "query": "spicy noodles with meat", "relevant_food_ids": [3]},
+  {"id": "s09", "query": "crispy duck", "relevant_food_ids": [12]},
+  {"id": "s10", "query": "tomato sauce", "relevant_food_ids": [21]},
+  {"id": "s11", "query": "kung pao", "relevant_food_ids": [1]},
+  {"id": "s12", "query": "small cantonese plates", "relevant_food_ids": [11]}
+]

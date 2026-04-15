@@ -1,0 +1,35 @@
+[project]
+name = "fos-ai"
+version = "0.1.0"
+description = "AI microservice for FoodOrderSystem — semantic search, recommendations, NL order parsing"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "pydantic-settings>=2.5.0",
+    "anthropic>=0.42.0",
+    "openai>=1.50.0",
+    "torch>=2.2.0",
+    "transformers>=4.44.0",
+    "mysql-connector-python>=9.0.0",
+    "numpy>=1.26.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24.0",
+    "httpx>=0.27.0",
+    "respx>=0.22.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+markers = [
+    "eval: quality evaluation against labelled datasets (run with `pytest eval/ -m eval`)",
+]
